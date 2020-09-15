@@ -1,2 +1,2 @@
-web: node start
+web: npm start
 worker: node patchy.js
