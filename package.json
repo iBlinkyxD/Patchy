@@ -11,6 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^12.3.1",
-    "djs-commands": "^1.2.2",
+    "djs-commands": "^1.2.2"
   }
 }
