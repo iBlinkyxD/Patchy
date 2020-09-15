@@ -1,6 +1,5 @@
 const Discord = require('discord.js');
 const client = new Discord.Client({disableEveryone: true});
-const botconfig = require('./botconfig.json');
 const { CommandHandler } = require('djs-commands');
 const CH = new CommandHandler({
   folder: __dirname + "/commands/",
@@ -29,4 +28,4 @@ client.on('message', async message => {
   }
 });
 
-client.login(botconfig.token);
+client.login(process.env.BOT_TOKEN);
