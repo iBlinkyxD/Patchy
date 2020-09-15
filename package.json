@@ -10,9 +10,7 @@
   "author": "iBlinky",
   "license": "ISC",
   "dependencies": {
-    "@discordjs/opus": "^0.3.2",
     "discord.js": "^12.3.1",
     "djs-commands": "^1.2.2",
-    "ffmpeg-static": "^4.2.7"
   }
 }
