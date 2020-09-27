@@ -8,7 +8,7 @@ const CH = new CommandHandler({
 
 client.on('ready', async () => {
   console.log(client.user.username + ' is online!');
-  client.user.setActivity('con la Mama de Matias');
+  client.user.setActivity('Among Us ඞ');
 });
 
 client.on('message', async message => {
