@@ -4,13 +4,18 @@
   "description": "Moderation Bot",
   "main": "patchy.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "worker: node patchy.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "iBlinky",
   "license": "ISC",
   "dependencies": {
+    "@discordjs/opus": "^0.3.2",
+    "@discordjs/voice": "^0.6.0",
     "discord.js": "^12.3.1",
-    "djs-commands": "^1.2.2"
+    "distube": "^3.0.1",
+    "djs-commands": "^1.2.2",
+    "ffmpeg-static": "^4.4.0",
+    "yt-search": "^0.1.1",
+    "ytdl-core": "^4.9.1"
   }
 }

@@ -1,13 +1,10 @@
 const Discord = require("discord.js");
 
-module.exports = class help {
-  constructor(){
-    this.name = 'help',
-    this.alias = ['h'],
-    this.usage = ';help'
-  }
-
-  async run (client, message, args) {
+module.exports = {
+  name: 'help',
+  aliases: ['h'],
+  description: 'Show a list of commands and their description.',
+  async run (client, message, cmd, args, Discord) {
     let botembed = new Discord.MessageEmbed()
     .setTitle("Lista de Commandos")
     .setColor("#fc7edd")

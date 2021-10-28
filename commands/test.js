@@ -1,13 +1,10 @@
 const Discord = require("discord.js");
 
-module.exports = class test {
-  constructor(){
-    this.name = 'test',
-    this.alias = ['t'],
-    this.usage = ';test'
-  }
-
-  async run (client, message, args) {
+module.exports = {
+  name: 'test',
+  aliases: ['t'],
+  description: 'Just a test command.',
+  async run (client, message, cmd, args) {
     return message.channel.send("tumal");
   }
 }
