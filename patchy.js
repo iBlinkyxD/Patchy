@@ -1,6 +1,5 @@
 const Discord = require('discord.js');
 const client = new Discord.Client({partials: ["MESSAGE", "CHANNEL", "REACTION"]});
-const botconfig = require('./botconfig.json');
 const { CommandHandler } = require('djs-commands');
 const distube = require('distube');
 
