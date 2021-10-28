@@ -36,4 +36,4 @@ client.once('ready', () => {
     client.user.setActivity(`Rythm tweakin`, {type: 'WATCHING'}) // PLAYING, WATCHING, LISTENING, STREAMING
 });
 
-client.login(botconfig.token);
+client.login(process.env.BOT_TOKEN);
