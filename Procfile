@@ -1,1 +1,1 @@
-worker: node patchy.js
+worker: node ./Structures/patchy.js
