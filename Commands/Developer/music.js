@@ -3,7 +3,6 @@ const { CommandInteraction, Client, MessageEmbed, Message } = require("discord.j
 module.exports = {
     name: "music",
     description: "Complete music system",
-    permission: "CONNECT",
     options: [
         {
         name:"play", description: "Play a song.", type: "SUB_COMMAND",
