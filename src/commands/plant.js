@@ -1,113 +1,200 @@
-const { SlashCommandBuilder } = require("discord.js");
-const { Pool } = require("pg");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
+const {
+  getPlayer,
+  getAvailablePlots,
+  plantCrop,
+  getInventory,
+  getSeedInventory,
+  updateSeedInventory,
+} = require("../utils/db");
 const fs = require("fs");
 
-// Read crops data from the JSON file
-const crops = JSON.parse(fs.readFileSync("./src/data/crops.json", "utf-8"));
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Read seeds data from the JSON file
+const seeds = JSON.parse(fs.readFileSync("./src/data/seeds.json", "utf-8"));
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("plant")
-    .setDescription("Plant a crop")
+    .setDescription("Plant a seed")
     .addStringOption((option) =>
       option
-        .setName("crop")
-        .setDescription("The type of crop you want to plant")
+        .setName("seed")
+        .setDescription("The type of seed you want to plant")
         .setRequired(true)
         .addChoices(
-          crops.map((crop) => ({
-            name: crop.name,
-            value: crop.name,
+          seeds.map((seed) => ({
+            name: seed.name,
+            value: seed.name,
           }))
         )
     ),
   async execute(interaction) {
-    const userId = interaction.author.id;
-    const cropName = interaction.options.getString("crop");
+    const playerId = interaction.user.id;
+    const player = await getPlayer(playerId);
 
-    // Find the selected crop from the JSON data
-    const selectedCrop = crops.find((crop) => crop.name === cropName);
-    if (!selectedCrop) {
-      await interaction.reply("That crop doesn't exist!");
-      return;
+    if (!player) {
+      return interaction.reply({
+        content:
+          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        flags: MessageFlags.Ephemeral,
+      });
     }
 
-    // Check if the player has enough coins and meets level requirements
-    const playerData = await pool.query("SELECT * FROM players WHERE player_id = $1", [userId]);
-    if (playerData.rows.length === 0) {
-      await interaction.reply(
-        "You don't have an account yet! Use `/balance` first."
+    // Extract arguments
+    const args = interaction.content.split(" ").slice(1); // Remove command prefix
+    if (args.length === 0) {
+      return interaction.reply("Please provide a seed to plant.");
+    }
+
+    // Determine if the last argument is a number (quantity)
+    let seedName = args.slice(0, -1).join(" ");
+    let quantity = parseInt(args[args.length - 1]);
+
+    if (isNaN(quantity)) {
+      seedName = args.join(" ");
+      quantity = 1; // Default to 1 if no quantity is specified
+    }
+
+    if (!seedName || quantity <= 0) {
+      return interaction.reply(
+        "Please provide a valid seed and quantity to plant."
       );
-      return;
     }
 
-    const player = playerData.rows[0];
-    if (player.coins < selectedCrop.price) {
-      await interaction.reply(
-        `❌ You don't have enough coins to plant **${cropName}**. You need **${selectedCrop.price}** coins.`
-      );
-      return;
-    }
-
-    if (player.level < selectedCrop.levelRequired) {
-      await interaction.reply(
-        `❌ You need to be at least level **${selectedCrop.levelRequired}** to plant **${cropName}**.`
-      );
-      return;
-    }
-
-    // Deduct cost and plant the crop
-    await pool.query(
-      "UPDATE players SET coins = coins - $1 WHERE player_id = $2",
-      [selectedCrop.price, userId]
+    // Find the selected seed from the JSON data
+    const selectedSeed = seeds.find(
+      (seed) => seed.name.toLowerCase() === seedName.toLowerCase()
     );
-    await interaction.reply(
-      `You planted **${cropName}**! It will grow in **2 hours**.`
+    if (!selectedSeed) {
+      return await interaction.reply("That seed doesn't exist!");
+    }
+
+    // Skip inventory check for Wheat Seeds
+    if (seedName.toLowerCase() !== "wheat seeds") {
+      const inventory = await getInventory(playerId);
+      const seedInInventory = inventory.find(
+        (item) => item.item_name.toLowerCase() === seedName.toLowerCase()
+      );
+
+      if (!seedInInventory || seedInInventory.quantity < quantity) {
+        return interaction.reply(
+          `❌ You don't have enough **${seedName}** seeds! You only have **${
+            seedInInventory ? seedInInventory.quantity : 0
+          }**.`
+        );
+      }
+    }
+
+    const availablePlot = await getAvailablePlots(playerId, quantity);
+    if (!availablePlot) {
+      return interaction.reply(
+        "You have no available plots! Harvest a crop or expand your farm."
+      );
+    }
+
+    const currentTime = Date.now();
+
+    // Check if the player is planting wheat
+    for (let i = 0; i < quantity; i++) {
+      const plot = availablePlot[i];
+      await plantCrop(
+        playerId,
+        plot.plot_id,
+        seedName.toLowerCase(),
+        currentTime,
+        selectedSeed.growthTime,
+        selectedSeed.yield
+      );
+    }
+
+    return interaction.reply(
+      `You planted **${quantity} ${seedName}**! It will grow in **${selectedSeed.growthTime} seconds**.`
     );
   },
   async executePrefix(message) {
-    const userId = message.author.id;
-    
-    // Extract the crop name from the message (assuming the format is "!plant <crop>")
-    const args = message.content.split(" ");
-    const cropName = args[1]; // Assuming the crop name is the second argument
-  
-    if (!cropName) {
-      await message.reply("Please provide a crop name to plant.");
-      return;
+    const playerId = message.author.id;
+    const player = await getPlayer(playerId);
+
+    if (!player) {
+      return message.reply({
+        content:
+          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        ephemeral: true,
+      });
     }
-  
-    // Find the selected crop from the JSON data
-    const selectedCrop = crops.find((crop) => crop.name.toLowerCase() === cropName.toLowerCase());
-    if (!selectedCrop) {
-      await message.reply("That crop doesn't exist!");
-      return;
+
+    // Extract arguments
+    const args = message.content.split(" ").slice(1); // Remove command prefix
+    if (args.length === 0) {
+      return message.reply("Please provide a seed to plant.");
     }
-  
-    // Check if the player has enough coins and meets level requirements
-    const playerData = await pool.query("SELECT * FROM players WHERE player_id = $1", [userId]);
-    if (playerData.rows.length === 0) {
-      await message.reply("You don't have an account yet! Use `/balance` first.");
-      return;
+
+    // Determine if the last argument is a number (quantity)
+    let seedName = args.slice(0, -1).join(" ");
+    let quantity = parseInt(args[args.length - 1]);
+
+    if (isNaN(quantity)) {
+      seedName = args.join(" ");
+      quantity = 1; // Default to 1 if no quantity is specified
     }
-  
-    const player = playerData.rows[0];
-    if (player.coins < selectedCrop.price) {
-      await message.reply(`❌ You don't have enough coins to plant **${cropName}**. You need **${selectedCrop.price}** coins.`);
-      return;
+
+    if (!seedName || quantity <= 0) {
+      return message.reply(
+        "Please provide a valid seed and quantity to plant."
+      );
     }
-  
-    if (player.level < selectedCrop.levelRequired) {
-      await message.reply(`❌ You need to be at least level **${selectedCrop.levelRequired}** to plant **${cropName}**.`);
-      return;
+
+    // Find the selected seed from the JSON data
+    const selectedSeed = seeds.find(
+      (seed) => seed.name.toLowerCase() === seedName.toLowerCase()
+    );
+    if (!selectedSeed) {
+      return await message.reply("That seed doesn't exist!");
     }
-  
-    // Deduct cost and plant the crop
-    await pool.query("UPDATE players SET coins = coins - $1 WHERE player_id = $2", [selectedCrop.price, userId]);
-    await message.reply(`You planted **${cropName}**! It will grow in **2 hours**.`);
-  },  
+
+    // Skip inventory check for Wheat Seeds
+    if (seedName.toLowerCase() !== "wheat seeds") {
+      const inventory = await getSeedInventory(playerId, "seed");
+      const seedInInventory = inventory.find(
+        (item) => item.item_name.toLowerCase() === seedName.toLowerCase()
+      );
+
+      if (!seedInInventory || seedInInventory.quantity < quantity) {
+        return message.reply(
+          `❌ You don't have enough **${seedName}** seeds! You only have **${
+            seedInInventory ? seedInInventory.quantity : 0
+          }**.`
+        );
+      }
+    }
+
+    const availablePlot = await getAvailablePlots(playerId, quantity);
+    if (!availablePlot) {
+      return message.reply(
+        "You have no available plots! Harvest a crop or expand your farm."
+      );
+    }
+
+    const currentTime = Date.now();
+
+    // Check if the player is planting wheat
+    for (let i = 0; i < quantity; i++) {
+      const plot = availablePlot[i];
+      await plantCrop(
+        playerId,
+        plot.plot_id,
+        selectedSeed.crop,
+        currentTime,
+        selectedSeed.growthTime,
+        selectedSeed.yield,
+        selectedSeed.id
+      );
+    }
+
+    await updateSeedInventory(playerId, quantity, selectedSeed.name);
+
+    return message.reply(
+      `You planted **${quantity} ${seedName}**! It will grow in **${selectedSeed.growthTime} seconds**.`
+    );
+  },
 };

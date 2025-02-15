@@ -1,4 +1,5 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
+const { getPlayer, createPlayer } = require("../utils/db");
 const { Pool } = require("pg");
 
 const pool = new Pool({
@@ -12,56 +13,44 @@ module.exports = {
   async execute(interaction) {
     const playerId = interaction.user.id;
 
-    try {
-      // Check if the player already exists
-      const checkQeury = "SELECT * FROM players WHERE player_id = $1";
-      const checkResult = await pool.query(checkQeury, [playerId]);
+    const player = await getPlayer(playerId);
 
-      if (checkResult.rows.length > 0) {
+    try {
+      if (player) {
         return interaction.reply({
-          content: "You already have a farming profile!",
-          ephemeral: true,
+          content:
+            "You already have a farm yet. Use `/profile` OR `!profile` to view it!",
+          flags: MessageFlags.Ephemeral,
         });
       }
 
       // Insert new player data
-      const insertQuery = `
-                INSERT INTO players (player_id, coins, level, xp, max_plots)
-                VALUES ($1, 100.00, 1, 0, 3)
-            `;
-      await pool.query(insertQuery, [playerId]);
+      await createPlayer(playerId);
 
       interaction.reply("Farming profile created! Check it with /profile");
     } catch (error) {
       console.error("Database error: ", error);
       interaction.reply({
         content: "There was an error creating your profile.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
 
   async executePrefix(message) {
     const playerId = message.author.id;
-
+    const player = await getPlayer(playerId);
     try {
-      // Check if the player already exists
-      const checkQeury = "SELECT * FROM players WHERE player_id = $1";
-      const checkResult = await pool.query(checkQeury, [playerId]);
-
-      if (checkResult.rows.length > 0) {
+      if (player) {
         return message.reply({
-          content: "You already have a farming profile!",
+          content:
+            "You already have a farm yet. Use `/profile` OR `!profile` to view it!",
           ephemeral: true,
         });
       }
 
       // Insert new player data
-      const insertQuery = `
-                INSERT INTO players (player_id, coins, level, xp, max_plots)
-                VALUES ($1, 100.00, 1, 0, 3)
-            `;
-      await pool.query(insertQuery, [playerId]);
+      await createPlayer(playerId);
 
       message.reply("Farming profile created! Check it with /profile");
     } catch (error) {

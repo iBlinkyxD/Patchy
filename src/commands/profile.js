@@ -1,9 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { Pool } = require("pg");
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  MessageFlags,
+} = require("discord.js");
+const { getPlayer, getInventory } = require("../utils/db");
+const { getLevelFromXP } = require("../utils/calculation");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,44 +15,37 @@ module.exports = {
     const playerId = interaction.user.id;
     const username = interaction.user.displayName;
 
-    try {
-      // Fetch player data
-      const playerQuery = "SELECT * FROM players WHERE player_id = $1";
-      const playerResult = await pool.query(playerQuery, [playerId]);
+    const player = await getPlayer(playerId);
+    const { level, currentXP, nextLevelXP } = getLevelFromXP(player.xp);
+    const inventory = await getInventory(playerId, "crop");
 
-      if (playerResult.rows.length === 0) {
+    try {
+      if (!player) {
         return interaction.reply({
           content:
-            "You don't have a farming profile yet. Use `/startfarm` to create one!",
-          ephemeral: true,
+            "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+          flags: MessageFlags.Ephemeral,
         });
       }
-
-      const player = playerResult.rows[0];
-
-      // Fetch inventory
-      const inventoryQuery =
-        "SELECT item_name, quantity FROM inventory WHERE player_id = $1 AND quantity > 0";
-      const inventoryResult = await pool.query(inventoryQuery, [playerId]);
-      const inventory =
-        inventoryResult.rows
-          .map((item) => `${item.item_name}: ${item.quantity}`)
-          .join("\n") || "You have no crops! Get some by farming.";
 
       // Create embed
       const embed = new EmbedBuilder()
         .setColor("#2ECC71")
         .setTitle(`${username}'s Farming Profile`)
-        .setThumbnail(interaction.user.displayAvatarURL())
+        .setThumbnail(interaction.author.displayAvatarURL())
         .addFields(
+          { name: "", value: `🌟 **Level ${level}**`, inline: true },
           {
-            name: "Balance",
-            value: `$${player.coins.toFixed(2)}`,
+            name: "",
+            value: `⚡ XP: ${currentXP}/${nextLevelXP}`,
             inline: true,
+          }, // XP progress bar
+          {
+            name: "",
+            value: `💰 Balance: **$${Math.round(player.coins)}**`,
+            inline: false,
           },
-          { name: "🌟 Level", value: `${player.level}`, inline: true },
-          { name: "⚡ XP", value: `${player.xp}`, inline: true },
-          { name: "🏡 Max Plots", value: `${player.max_plots}`, inline: true },
+          { name: "", value: `🏡 Plots: ${player.max_plots}`, inline: false },
           { name: "📦 Inventory", value: inventory, inline: false }
         )
         .setTimestamp();
@@ -60,7 +54,7 @@ module.exports = {
       console.error("Database error: ", error);
       interaction.reply({
         content: "There was an error retrieving your profile.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
@@ -69,29 +63,18 @@ module.exports = {
     const playerId = message.author.id;
     const username = message.author.displayName;
 
-    try {
-      // Fetch player data
-      const playerQuery = "SELECT * FROM players WHERE player_id = $1";
-      const playerResult = await pool.query(playerQuery, [playerId]);
+    const player = await getPlayer(playerId);
+    const { level, currentXP, nextLevelXP } = getLevelFromXP(player.xp);
+    const inventory = await getInventory(playerId, "crop");
 
-      if (playerResult.rows.length === 0) {
+    try {
+      if (!player) {
         return message.reply({
           content:
-            "You don't have a farming profile yet. Use `/startfarm` to create one!",
+            "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
           ephemeral: true,
         });
       }
-
-      const player = playerResult.rows[0];
-
-      // Fetch inventory
-      const inventoryQuery =
-        "SELECT item_name, quantity FROM inventory WHERE player_id = $1 AND quantity > 0";
-      const inventoryResult = await pool.query(inventoryQuery, [playerId]);
-      const inventory =
-        inventoryResult.rows
-          .map((item) => `${item.item_name}: ${item.quantity}`)
-          .join("\n") || "You have no crops! Get some by farming.";
 
       // Create embed
       const embed = new EmbedBuilder()
@@ -99,14 +82,18 @@ module.exports = {
         .setTitle(`${username}'s Farming Profile`)
         .setThumbnail(message.author.displayAvatarURL())
         .addFields(
+          { name: "", value: `🌟 **Level ${level}**`, inline: true },
           {
-            name: "💰 Balance",
-            value: `$${Number(player.coins).toFixed(2)}`,
+            name: "",
+            value: `⚡ XP: ${currentXP}/${nextLevelXP}`,
             inline: true,
+          }, // XP progress bar
+          {
+            name: "",
+            value: `💰 Balance: **$${Math.round(player.coins)}**`,
+            inline: false,
           },
-          { name: "🌟 Level", value: `${player.level}`, inline: true },
-          { name: "⚡ XP", value: `${player.xp}`, inline: true },
-          { name: "🏡 Max Plots", value: `${player.max_plots}`, inline: true },
+          { name: "", value: `🏡 Plots: ${player.max_plots}`, inline: false },
           { name: "📦 Inventory", value: inventory, inline: false }
         )
         .setTimestamp();
