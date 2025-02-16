@@ -2,78 +2,64 @@
     {
         "id": 1,
         "name": "Wheat Seeds",
-        "crop": "Wheat",
+        "cropId": 1,
         "price": 0,
         "levelRequired": 1,
         "growthTime": 10,
-        "yield": 5,
-        "xp": 2,
-        "sellPrice": 3
+        "yield": 5
     },
     {
         "id": 2,
         "name": "Carrot Seeds",
-        "crop": "Carrot",
+        "cropId": 2,
         "price": 5,
         "levelRequired": 2,
         "growthTime": 20,
-        "yield": 7,
-        "xp": 3,
-        "sellPrice": 4
+        "yield": 7
     },
     {
         "id": 3,
         "name": "Corn Seeds",
-        "crop": "Corn",
+        "cropId": 3,
         "price": 10,
         "levelRequired": 5,
         "growthTime": 30,
-        "yield": 9,
-        "xp": 5,
-        "sellPrice": 5
+        "yield": 9
     },
     {
         "id": 4,
         "name": "Strawberries Seeds",
-        "crop": "Strawberries",
+        "cropId": 4,
         "price": 50,
         "levelRequired": 10,
         "growthTime": 40,
-        "yield": 12,
-        "xp": 7,
-        "sellPrice": 10
+        "yield": 12
     },
     {
         "id": 5,
         "name": "Pumpkins Seeds",
-        "crop": "Pumpkins",
+        "cropId": 5,
         "price": 100,
         "levelRequired": 15,
         "growthTime": 50,
-        "yield": 20,
-        "xp": 15,
-        "sellPrice": 20
+        "yield": 20
     },
     {
         "id": 6,
         "name": "Grapes Seeds",
-        "crop": "Grapes",
+        "cropId": 6,
         "price": 200,
         "levelRequired": 20,
         "growthTime": 60,
-        "yield": 25,
-        "xp": 25,
-        "sellPrice": 30
+        "yield": 25
     },
     {
         "id": 7,
         "name": "Pineapple Seeds",
-        "crop": "Pineapple",
+        "cropId": 7,
         "price": 500,
         "levelRequired": 25,
         "growthTime": 70,
-        "yield": 30,
-        "xp": 50,
-        "sellPrice": 50
+        "yield": 30
     }
 ]

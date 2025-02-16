@@ -1,15 +1,24 @@
-const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
 const {
-  getPlayer,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  MessageFlags,
+} = require("discord.js");
+const {
   getReadyCrops,
-  harvestCrop,
-  addToInventory,
-  addXP,
-} = require("../utils/db");
+  harvestCrop
+} = require("../utils/plotsDb");
+const {addToInventory} = require("../utils/inventoryDb");
+const { getPlayer, addXP } = require("../utils/playersDb");
 const fs = require("fs");
 
-// Read seeds data from the JSON file
-const cropData = JSON.parse(fs.readFileSync("./src/data/seeds.json", "utf-8"));
+// Read crops data once and store it globally
+const crops = JSON.parse(fs.readFileSync("./src/data/crops.json", "utf-8"));
+
+// Create a map of crop names to XP for faster lookup
+const cropXPMap = crops.reduce((acc, crop) => {
+  acc[crop.name.toLowerCase()] = crop.xp;
+  return acc;
+}, {});
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -19,105 +28,95 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const playerId = interaction.user.id;
-
-    const player = await getPlayer(playerId);
-
-    if (!player) {
-      return interaction.reply({
-        content:
-          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-          flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    // Fetch crops that are ready for harvest
-    const readyCrops = await getReadyCrops(playerId);
-
-    if (!readyCrops.length) {
-      return interaction.reply("⏳ You have no crops ready for harvest!");
-    }
-
-    let harvestedCrops = [];
-
-    for (const crop of readyCrops) {
-      // Store harvested crops in inventory
-      await addToInventory(playerId, crop.item_name, crop.yield, crop.sort_order, "crop");
-
-      // Reset the farm plot
-      await harvestCrop(crop.plot_id);
-
-      harvestedCrops.push(`${crop.item_name} (+${crop.yield})`);
-    }
-
-    return interaction.reply(
-      `🌾 You harvested: **${harvestedCrops.join(
-        ", "
-      )}**!\n📦 Stored in inventory.`
-    );
+    handleHarvest({
+      id: interaction.user.id,
+      name: interaction.user.displayName,
+      reply: (response) => interaction.reply(response),
+      ephemeralFlag: MessageFlags.Ephemeral,
+    });
   },
-  async executePrefix(message) {
-    const playerId = message.author.id;
-    const username = message.author.displayName;
 
-    const player = await getPlayer(playerId);
+  async executePrefix(message) {
+    handleHarvest({
+      id: message.author.id,
+      name: message.author.displayName,
+      reply: (response) => message.reply(response),
+      ephemeralFlag: true,
+    });
+  },
+};
+
+async function handleHarvest({ id, name, reply, ephemeralFlag }) {
+  try {
+    const player = await getPlayer(id);
 
     if (!player) {
-      return message.reply({
+      return reply({
         content:
           "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-        ephemeral: true,
+        flags: ephemeralFlag,
       });
     }
 
     // Fetch crops that are ready for harvest
-    const readyCrops = await getReadyCrops(playerId);
-
+    const readyCrops = await getReadyCrops(id);
     if (!readyCrops.length) {
-      return message.reply("⏳ You have no crops ready for harvest!");
+      return reply("⏳ You have no crops ready for harvest!");
     }
 
     let harvestedCrops = {};
     let totalXP = 0;
 
-    for (const crop of readyCrops) {
+    // Perform batch database operations
+    const harvestPromises = readyCrops.map(async (crop) => {
       // Store harvested crops in inventory
-      await addToInventory(playerId, crop.item_name, crop.yield, crop.sort_order, "crop");
+      await addToInventory(
+        id,
+        crop.item_name,
+        crop.yield,
+        crop.sort_order,
+        "crop"
+      );
 
       // Reset the farm plot
       await harvestCrop(crop.plot_id);
 
-      if (!harvestedCrops[crop.item_name]) {
-        harvestedCrops[crop.item_name] = 0;
-      }
-      harvestedCrops[crop.item_name] += crop.yield;
+      // Accumulate crop data
+      harvestedCrops[crop.item_name] =
+        (harvestedCrops[crop.item_name] || 0) + crop.yield;
 
-      // Find XP value for this crop from JSON
-      const cropInfo = cropData.find(
-        (c) => c.crop.toLowerCase() === crop.item_name.toLowerCase()
-      );
-      const cropXP = cropInfo ? cropInfo.xp : 1; // Default to 1 XP if crop not found
-
-      // Add XP based on the crop's XP per yield
+      // Calculate XP for the crop
+      const cropXP = cropXPMap[crop.item_name.toLowerCase()] || 1; // Default XP = 1
       totalXP += crop.yield * cropXP;
-    }
+    });
 
-    await addXP(playerId, totalXP);
+    // Wait for all promises to complete
+    await Promise.all(harvestPromises);
+
+    // Add total XP
+    await addXP(id, totalXP);
 
     // Construct embed message
     const embed = new EmbedBuilder()
-      .setAuthor({ name: `${username}` })
+      .setAuthor({ name: name })
       .setColor("#ffcc00")
       .setTitle("Harvest Report")
-      .setDescription(`You've successfully harvested your crops!`)
+      .setDescription("You've successfully harvested your crops!")
       .setFooter({ text: "Stored in your inventory 📦" });
+
+    // Construct a single string for all harvested crops
+    let cropsList = "";
     Object.entries(harvestedCrops).forEach(([crop, amount]) => {
-      embed.addFields({
-        name: "",
-        value: `**${amount}** ${crop}`,
-        inline: true,
-      });
+      cropsList += `**${amount}** ${crop}\n`; // Adds each crop in a new line
     });
+
+    // Add harvested crops data to the embed
+    embed.addFields({
+      name: "",
+      value: cropsList || "No crops were harvested.", // Default message if no crops were harvested
+      inline: false,
+    });
+
     // Add XP earned at the end
     embed.addFields({
       name: "",
@@ -125,6 +124,13 @@ module.exports = {
       inline: false,
     });
 
-    return message.reply({ embeds: [embed] });
-  },
-};
+    // Reply with the embed
+    return reply({ embeds: [embed] });
+  } catch (error) {
+    console.error("Error during harvest process:", error);
+    return reply({
+      content: "There was an error during the process.",
+      flags: ephemeralFlag,
+    });
+  }
+}

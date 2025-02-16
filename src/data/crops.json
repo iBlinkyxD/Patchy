@@ -1,0 +1,44 @@
+[
+    {
+        "id": 1,
+        "name": "Wheat",
+        "sellPrice": 3,
+        "xp": 2
+    },
+    {
+        "id": 2,
+        "name": "Carrot",
+        "sellPrice": 4,
+        "xp": 3
+    },
+    {
+        "id": 3,
+        "name": "Corn",
+        "sellPrice": 5,
+        "xp": 5
+    },
+    {
+        "id": 4,
+        "name": "Strawberries",
+        "sellPrice": 10,
+        "xp": 7
+    },
+    {
+        "id": 5,
+        "name": "Pumpkins",
+        "sellPrice": 20,
+        "xp": 15
+    },
+    {
+        "id": 6,
+        "name": "Grapes",
+        "sellPrice": 30,
+        "xp": 25
+    },
+    {
+        "id": 7,
+        "name": "Pineapple",
+        "sellPrice": 50,
+        "xp": 50
+    }
+]

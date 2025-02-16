@@ -3,12 +3,11 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   MessageFlags,
 } = require("discord.js");
-const { getPlayer, getSeedInventory, getInventory } = require("../utils/db");
-const { getLevelFromXP } = require("../utils/calculation");
+const { getPlayer } = require("../utils/playersDb");
+const { getInventory } = require("../utils/inventoryDb");
+const { getLevelFromXP } = require("../utils/formulas");
 const fs = require("fs");
 
 // Read seeds data from the JSON file
@@ -20,90 +19,63 @@ module.exports = {
     .setDescription("View available seeds and upgrade for purchase."),
 
   async execute(interaction) {
-    const playerId = interaction.user.id;
-    const username = interaction.user.displayName;
-    const player = await getPlayer(playerId);
-    const { level } = getLevelFromXP(player.xp);
-
-    if (!player) {
-      return interaction.reply({
-        content:
-          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-        flags: MessageFlags.Ephemeral,
-      });
-    }
-
-    const availableSeeds = seeds.filter(
-      (seed) => level >= seed.levelRequired && seed.price > 0
-    );
-    const nextUnlock = seeds.find((seed) => seed.levelRequired > level);
-
-    const seedList =
-      availableSeeds
-        .map((seed) => `**${seed.name}** — $${seed.price}`)
-        .join("\n") || "Try planting wheat seeds—they're FREE!";
-
-    //Create an embed to display the available seeds
-    const embed = new EmbedBuilder()
-      .setAuthor({ name: `${username}` })
-      .setTitle(
-        "The higher your farming level, the better seeds you can plant!"
-      )
-      .setColor("#FFA500")
-      .setDescription(`Balance: **$${Math.round(player.coins)}**`)
-      .addFields({ name: "", value: seedList })
-      .setFooter({
-        text: nextUnlock
-          ? `🔒 Next Unlock: ${nextUnlock.name} (Level ${nextUnlock.levelRequired})`
-          : "🎉 You've unlocked all seeds!",
-      });
-
-    await interaction.reply({ embeds: [embed] });
+    await handleShop({
+      id: interaction.user.id,
+      name: interaction.user.displayName,
+      reply: (response) => interaction.reply(response),
+      ephemeralFlag: MessageFlags.Ephemeral,
+    });
   },
 
   async executePrefix(message) {
-    const playerId = message.author.id;
-    const username = message.author.displayName;
-    const player = await getPlayer(playerId);
-    const { level } = getLevelFromXP(player.xp);
+    await handleShop({
+      id: message.author.id,
+      name: message.author.displayName,
+      reply: (response) => message.reply(response),
+      ephemeralFlag: true,
+    });
+  },
+};
+
+async function handleShop({ id, name, reply, ephemeralFlag }) {
+  try {
+    const player = await getPlayer(id);
 
     if (!player) {
-      return message.reply({
+      return reply({
         content:
           "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-        ephemeral: true,
+        flags: ephemeralFlag,
       });
     }
 
-    const availableSeeds = seeds.filter(
-      (seed) => level >= seed.levelRequired && seed.price > 0
-    );
-    const nextUnlock = seeds.find((seed) => seed.levelRequired > level);
+    const { level } = getLevelFromXP(player.xp);
 
-  // Retrieve the player's current seed inventory
-  const inventory = await getSeedInventory(playerId, "seed");
+    // Precompute available seeds and next unlock
+    const availableSeeds = [];
+    let nextUnlock = null;
 
-  const seedList =
-    availableSeeds
-      .map((seed) => {
-        const ownedAmount = inventory.find(
-          (item) => item.item_name.toLowerCase() === seed.name.toLowerCase()
-        )
-          ? inventory.find(
-              (item) => item.item_name.toLowerCase() === seed.name.toLowerCase()
-            ).quantity
-          : 0;
+    for (const seed of seeds) {
+      if (level >= seed.levelRequired && seed.price > 0) {
+        availableSeeds.push(seed);
+      } else if (!nextUnlock && seed.levelRequired > level) {
+        nextUnlock = seed;
+      }
+    }
 
-        return `**${seed.name}** ($${seed.price}) — Owned: **${ownedAmount}**`;
-      })
-      .join("\n") || "Try planting wheat seeds—they're FREE!";
+    // Retrieve the player's current seed inventory
+    const inventory = await getInventory(id, "seed");
+    const inventoryMap = new Map(inventory.map(item => [item.item_name.toLowerCase(), item.quantity]));
 
-    //Create an embed to display the available seeds
+    const seedList = availableSeeds.map((seed) => {
+      const ownedAmount = inventoryMap.get(seed.name.toLowerCase()) || 0;
+      return `**${seed.name}** ($${seed.price}) — Owned: **${ownedAmount}**`;
+    }).join("\n") || "Try planting wheat seeds—they're FREE!";
+
+    // Create an embed to display the available seeds
     const embed = new EmbedBuilder()
-      .setAuthor({ name: `${username}` })
-      .setTitle(
-        "The higher your farming level, the better seeds you can plant!"
-      )
+      .setAuthor({ name: `${name}` })
+      .setTitle("The higher your farming level, the better seeds you can plant!")
       .setColor("#FFA500")
       .setDescription(`Balance: **$${Math.round(player.coins)}**`)
       .addFields({ name: "", value: seedList })
@@ -125,28 +97,16 @@ module.exports = {
         }))
       );
 
-    const buyButtons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("buy_1")
-        .setLabel("Buy x1")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("buy_10")
-        .setLabel("Buy x10")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("buy_100")
-        .setLabel("Buy x25")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("buy_1000")
-        .setLabel("Buy x1000")
-        .setStyle(ButtonStyle.Primary)
-    );
-    // Send the embed with dropdown and buttons
-    await message.reply({
+    // Send the embed with the dropdown menu
+    await reply({
       embeds: [embed],
-      components: [new ActionRowBuilder().addComponents(seedMenu), buyButtons],
+      components: [new ActionRowBuilder().addComponents(seedMenu)],
     });
-  },
-};
+  } catch (error) {
+    console.error("Error during buy process:", error);
+    return reply({
+      content: "There was an error during the process.",
+      flags: ephemeralFlag,
+    });
+  }
+}
