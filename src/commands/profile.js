@@ -6,6 +6,7 @@ const {
 const { getInventory } = require("../utils/inventoryDb");
 const { getPlayer } = require("../utils/playersDb");
 const { getLevelFromXP } = require("../utils/formulas");
+const { getUsedPlot } = require("../utils/plotsDb");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -53,11 +54,12 @@ async function handleProfileRequest({
     const { level, currentXP, nextLevelXP } = getLevelFromXP(player.xp);
     const inventory = await getInventory(id, "crop");
 
-    console.log(inventory);
-
     let formattedInventory = inventory.length > 0
       ? inventory.map(item => `**${item.quantity}** ${item.item_name}`).join("\n")
       : "You have no crops."; // If no items, show an empty message
+
+    const usedPlot = await getUsedPlot(id);
+    let emptyPlot = player.max_plots - usedPlot;
 
     const embed = new EmbedBuilder()
       .setColor("#2ECC71")
@@ -71,7 +73,7 @@ async function handleProfileRequest({
           value: `💰 Balance: **$${Math.round(player.coins)}**`,
           inline: false,
         },
-        { name: "", value: `🏡 Plots: ${player.max_plots}`, inline: false },
+        { name: "", value: `🏡 Available Plots: ${emptyPlot}/${player.max_plots}`, inline: false },
         { name: "📦 Inventory", value: formattedInventory, inline: false }
       )
       .setTimestamp();

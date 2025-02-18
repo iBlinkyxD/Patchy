@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction) {
     await handleStartFarm({
       id: interaction.user.id,
-      reply: (response) => interaction.editReply(response),
+      reply: (response) => interaction.reply(response),
       ephemeralFlag: MessageFlags.Ephemeral,
     });
   },

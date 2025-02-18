@@ -3,15 +3,11 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   MessageFlags,
 } = require("discord.js");
 const { getPlayer } = require("../utils/playersDb");
-const { getInventory } = require("../utils/inventoryDb");
-const { getLevelFromXP } = require("../utils/formulas");
-const fs = require("fs");
-
-// Read seeds data from the JSON file
-const seeds = JSON.parse(fs.readFileSync("./src/data/seeds.json", "utf-8"));
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -43,69 +39,40 @@ async function handleShop({ id, name, reply, ephemeralFlag }) {
 
     if (!player) {
       return reply({
-        content:
-          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        content: "You don't have a farm yet. Use `/startfarm` to create one!",
         flags: ephemeralFlag,
       });
     }
 
-    const { level } = getLevelFromXP(player.xp);
+    // Create buttons for Seed Shop and Upgrade Shop
+    const buttonRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("seed_shop")
+        .setLabel("🌱")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("upgrade_shop")
+        .setLabel("🏡")
+        .setStyle(ButtonStyle.Primary)
+    );
 
-    // Precompute available seeds and next unlock
-    const availableSeeds = [];
-    let nextUnlock = null;
-
-    for (const seed of seeds) {
-      if (level >= seed.levelRequired && seed.price > 0) {
-        availableSeeds.push(seed);
-      } else if (!nextUnlock && seed.levelRequired > level) {
-        nextUnlock = seed;
-      }
-    }
-
-    // Retrieve the player's current seed inventory
-    const inventory = await getInventory(id, "seed");
-    const inventoryMap = new Map(inventory.map(item => [item.item_name.toLowerCase(), item.quantity]));
-
-    const seedList = availableSeeds.map((seed) => {
-      const ownedAmount = inventoryMap.get(seed.name.toLowerCase()) || 0;
-      return `**${seed.name}** ($${seed.price}) — Owned: **${ownedAmount}**`;
-    }).join("\n") || "Try planting wheat seeds—they're FREE!";
-
-    // Create an embed to display the available seeds
+    // Send the initial embed with buttons to choose a shop
     const embed = new EmbedBuilder()
       .setAuthor({ name: `${name}` })
-      .setTitle("The higher your farming level, the better seeds you can plant!")
-      .setColor("#FFA500")
-      .setDescription(`Balance: **$${Math.round(player.coins)}**`)
-      .addFields({ name: "", value: seedList })
-      .setFooter({
-        text: nextUnlock
-          ? `🔒 Next Unlock: ${nextUnlock.name} (Level ${nextUnlock.levelRequired})`
-          : "🎉 You've unlocked all seeds!",
-      });
+      .setTitle("Please select a category.")
+      .setDescription(
+        "🌱 **Seed Shop** - Shop for seeds. \n 🏡 **Farm Upgrade** - Shop for farm upgrades."
+      )
+      .setColor("#FFA500");
 
-    // Dropdown menu for seed selection
-    const seedMenu = new StringSelectMenuBuilder()
-      .setCustomId("select_seed")
-      .setPlaceholder("Choose a seed to buy.")
-      .addOptions(
-        availableSeeds.map((seed) => ({
-          label: seed.name,
-          description: `$${seed.price} per seed`,
-          value: seed.name,
-        }))
-      );
-
-    // Send the embed with the dropdown menu
     await reply({
       embeds: [embed],
-      components: [new ActionRowBuilder().addComponents(seedMenu)],
+      components: [buttonRow],
     });
   } catch (error) {
-    console.error("Error during buy process:", error);
+    console.error("Error during shop handling:", error);
     return reply({
-      content: "There was an error during the process.",
+      content: "There was an error while loading the shop.",
       flags: ephemeralFlag,
     });
   }

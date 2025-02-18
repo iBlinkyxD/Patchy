@@ -42,4 +42,4 @@ for (const file of eventFiles) {
   client.on(eventName, (...args) => event(client, ...args));
 }
 
-client.login(process.env.BOT_TOKEN_DEV);
+client.login(process.env.BOT_TOKEN_PROD);

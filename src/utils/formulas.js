@@ -19,4 +19,9 @@ function getLevelFromXP(xp) {
     };
 }
 
-module.exports = { getLevelFromXP };
+function upgradeCost(basePrice, multiplier, level) {
+    return Math.round(basePrice * Math.pow(multiplier, level));
+  }
+  
+
+module.exports = { getLevelFromXP, upgradeCost };

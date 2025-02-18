@@ -34,7 +34,8 @@ async function getReadyCrops(playerId) {
     SELECT * FROM player_farm
     WHERE player_id = $1
     AND status = 'Planted'
-    AND (plant_time + growth_time * 1000) <= $2;
+    AND (plant_time + growth_time * 1000) <= $2
+    ORDER BY sort_order;
   `;
 
   const { rows } = await pool.query(query, [playerId, Date.now()]);
@@ -52,9 +53,22 @@ async function harvestCrop(plotId) {
   await pool.query(query, [plotId]);
 }
 
+async function getUsedPlot(playerId) {
+  const query = `SELECT * FROM player_farm WHERE player_id = $1 AND status = 'Planted'`;
+  const result = await pool.query(query, [playerId]);
+
+  // Check if no rows were returned, and return 0
+  if (result.rows.length === 0) {
+    return 0;
+  }
+
+  return result.rows.length;
+}
+
 module.exports = {
   getAvailablePlots,
   plantCrop,
   getReadyCrops,
   harvestCrop,
+  getUsedPlot,
 };
