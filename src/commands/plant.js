@@ -1,10 +1,7 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const {
-  getAvailablePlots,
-  plantCrop
-} = require("../utils/plotsDb");
+const { getAvailablePlots, plantCrop } = require("../utils/plotsDb");
 const { getPlayer } = require("../utils/playersDb");
-const { getInventory, updateInventory} = require("../utils/inventoryDb");
+const { getInventory, updateInventory } = require("../utils/inventoryDb");
 const fs = require("fs");
 
 // Read seeds data from the JSON file
@@ -37,6 +34,30 @@ module.exports = {
         .setRequired(false)
     ),
 
+  async autocomplete(interaction) {
+    const player = await getPlayer(interaction.user.id);
+
+    if (!player) {
+      return interaction.reply({
+        content:
+          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        flags: ephemeralFlag,
+      });
+    }
+
+    const { level } = getLevelFromXP(player.xp);
+
+    // Filter seeds based on player's level
+    const availableSeeds = seeds
+      .filter((seed) => level >= seed.levelRequired)
+      .map((seed) => ({
+        name: `${seed.emoji} ${seed.name}`,
+        value: seed.name,
+      }));
+
+    await interaction.respond(availableSeeds.slice(0, 25)); // Discord allows up to 25 choices
+  },
+
   async execute(interaction) {
     const seedName = interaction.options.getString("seed");
     const quantity = interaction.options.getInteger("quantity") || 1;
@@ -51,8 +72,9 @@ module.exports = {
 
   async executePrefix(message) {
     const args = message.content.split(" ").slice(1);
-    if (args.length === 0) return message.reply("Please provide a seed to plant.");
-  
+    if (args.length === 0)
+      return message.reply("Please provide a seed to plant.");
+
     const { seedName, quantity } = parseArguments(args);
 
     await handlePlanting({
@@ -75,55 +97,82 @@ function parseArguments(args) {
   };
 }
 
-async function handlePlanting({ id, reply, ephemeralFlag, seedName, quantity }) {
+async function handlePlanting({
+  id,
+  reply,
+  ephemeralFlag,
+  seedName,
+  quantity,
+}) {
   try {
     const player = await getPlayer(id);
     if (!player) {
       return reply({
-        content: "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        content:
+          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
         flags: ephemeralFlag,
       });
     }
 
     const seedLower = seedName.toLowerCase();
-    const selectedSeed = seeds.find((seed) => seed.name.toLowerCase() === seedLower);
+    const selectedSeed = seeds.find(
+      (seed) => seed.name.toLowerCase() === seedLower
+    );
     if (!selectedSeed) return reply("That seed doesn't exist!");
 
     const crop = crops.find((crop) => crop.id === selectedSeed.cropId);
     if (!crop) return reply("Error: Associated crop not found!");
 
+    let remainingSeeds = "unlimited"; // Default for Wheat Seeds
+
     // Check seed inventory (except for Wheat Seeds)
     if (seedLower !== "wheat seeds") {
       const inventory = await getInventory(id, "seed");
-      const seedInInventory = inventory.find((item) => item.item_name.toLowerCase() === seedLower);
+      const seedInInventory = inventory.find(
+        (item) => item.item_name.toLowerCase() === seedLower
+      );
 
       if (!seedInInventory || seedInInventory.quantity < quantity) {
-        return reply(`You don't have enough **${seedName}** seeds! You only have **${seedInInventory ? seedInInventory.quantity : 0}**.`);
+        return reply(
+          `You don't have enough **${seedName}** seeds! You only have **${
+            seedInInventory ? seedInInventory.quantity : 0
+          }**.`
+        );
       }
+
+      remainingSeeds = seedInInventory.quantity - quantity;
     }
 
     // Get available plots
     const availablePlots = await getAvailablePlots(id, quantity);
-    if (!availablePlots) return reply("You have no available plots! Harvest a crop or expand your farm.");
+    if (!availablePlots)
+      return reply(
+        "You have no available plots! Harvest a crop or expand your farm."
+      );
 
     await updateInventory(id, quantity, selectedSeed.name);
+    
 
     // Plant crops in parallel
     await Promise.all(
-      availablePlots.slice(0, quantity).map((plot) =>
-        plantCrop(
-          id,
-          plot.plot_id,
-          crop.name,
-          Date.now(),
-          selectedSeed.growthTime,
-          selectedSeed.yield,
-          selectedSeed.id
+      availablePlots
+        .slice(0, quantity)
+        .map((plot) =>
+          plantCrop(
+            id,
+            plot.plot_id,
+            crop.name,
+            Date.now(),
+            selectedSeed.growthTime,
+            selectedSeed.yield,
+            selectedSeed.id
+          )
         )
-      )
     );
 
-    return reply(`You planted **${quantity} ${seedName}**! They will grow in **${selectedSeed.growthTime} seconds**.`);
+    return reply(
+      `You planted **${quantity} ${seedName}**! They will grow in **${selectedSeed.growthTime} seconds**.\n${selectedSeed.emoji} **${seedName} left** ${remainingSeeds}`
+    );
   } catch (error) {
     console.error("Database error: ", error);
     return reply({
@@ -132,4 +181,3 @@ async function handlePlanting({ id, reply, ephemeralFlag, seedName, quantity }) 
     });
   }
 }
-

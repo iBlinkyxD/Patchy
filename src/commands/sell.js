@@ -19,19 +19,17 @@ module.exports = {
     handleSell({
       id: interaction.user.id,
       reply: (response) => interaction.reply(response),
-      ephemeralFlag: MessageFlags.Ephemeral,
     });
   },
   async executePrefix(message) {
     handleSell({
       id: message.author.id,
       reply: (response) => message.reply(response),
-      ephemeralFlag: true,
     });
   },
 };
 
-async function handleSell({ id, reply, ephemeralFlag }) {
+async function handleSell({ id, reply }) {
   try {
     const player = await getPlayer(id);
     const inventory = await getInventory(id, "crop");
@@ -40,14 +38,14 @@ async function handleSell({ id, reply, ephemeralFlag }) {
       return reply({
         content:
           "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-          flags: ephemeralFlag,
+          flags: MessageFlags.Ephemeral,
       });
     }
 
     if (inventory.length === 0) {
       return reply({
         content: "You don't have any crops to sell!",
-        flags: ephemeralFlag,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -82,7 +80,7 @@ async function handleSell({ id, reply, ephemeralFlag }) {
     console.error("Error during sell process:", error);
     return reply({
       content: "There was an error during the process.",
-      flags: ephemeralFlag,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }

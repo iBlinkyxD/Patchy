@@ -107,7 +107,9 @@ async function handleHarvest({ id, name, reply, ephemeralFlag }) {
     // Construct a single string for all harvested crops
     let cropsList = "";
     Object.entries(harvestedCrops).forEach(([crop, amount]) => {
-      cropsList += `**${amount}** ${crop}\n`; // Adds each crop in a new line
+      const cropData = crops.find((c) => c.name.toLowerCase() === crop.toLowerCase());
+      const emoji = cropData?.emoji || "🌱"; // Default emoji if not found
+      cropsList += `${emoji} **${amount}** ${crop}\n`;
     });
 
     // Add harvested crops data to the embed

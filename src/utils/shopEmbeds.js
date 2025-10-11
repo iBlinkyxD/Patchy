@@ -108,7 +108,7 @@ async function showSeedShop(interaction) {
       availableSeeds
         .map((seed) => {
           const ownedAmount = inventoryMap.get(seed.name.toLowerCase()) || 0;
-          return `**${seed.name}** ($${seed.price}) — Owned: **${ownedAmount}**`;
+          return `${seed.emoji} **${seed.name}** ($${seed.price}) — Owned: **${ownedAmount}**`;
         })
         .join("\n") || "Try planting wheat seeds—they're FREE!";
 
@@ -119,7 +119,7 @@ async function showSeedShop(interaction) {
         "The higher your farming level, the better seeds you can plant!"
       )
       .setColor("#FFA500")
-      .setDescription(`Balance: **$${Math.round(player.coins)}**`)
+      .setDescription(`💰 Balance: **$${Math.round(player.coins)}**`)
       .addFields({ name: "", value: seedList })
       .setFooter({
         text: nextUnlock

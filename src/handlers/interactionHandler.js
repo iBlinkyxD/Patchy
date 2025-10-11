@@ -28,7 +28,7 @@ const upgrades = JSON.parse(
 
 // Helper function to create the seed embed
 const createSeedEmbed = (
-  player,
+  bal,
   availableSeeds,
   inventory,
   username,
@@ -44,11 +44,11 @@ const createSeedEmbed = (
     availableSeeds
       .map((seed) => {
         const owned = inventory.get(seed.name.toLowerCase()) || 0;
-        return `**${seed.name}** ($${seed.price}) — Owned: **${owned}**`;
+        return `${seed.emoji} **${seed.name}** ($${seed.price}) — Owned: **${owned}**`;
       })
       .join("\n") || "Try planting wheat seeds—they're FREE!";
   // Construct the description dynamically
-  let description = `Balance: **$${Math.round(player.coins)}**`;
+  let description = `💰 Balance: **$${Math.round(bal)}**`;
   if (ownedAmount !== null) {
     description += `\nOwned **(${selectedSeedName}): ${ownedAmount}**`;
   }
@@ -88,12 +88,21 @@ module.exports.handleInteraction = async (interaction) => {
     interaction.customId === "select_seed"
   ) {
     const selectedSeedName = interaction.values[0];
+    const selectedSeed = seeds.find((seed) => seed.name === selectedSeedName);
+
+    // Check if player meets the level requirement
+    if (!selectedSeed || level < selectedSeed.levelRequired) {
+      return interaction.reply({
+        content: `🚫 You do not meet the level requirement for **${selectedSeedName}**. Required Level: **${selectedSeed.levelRequired}**, Your Level: **${level}**.`,
+        ephemeral: true, // Only visible to the user
+      });
+    }
 
     selectedSeeds.set(playerId, selectedSeedName);
 
     //Create an embed to display the available seeds
     const embed = createSeedEmbed(
-      player,
+      player.coins,
       availableSeeds,
       inventory,
       username,
@@ -200,9 +209,11 @@ module.exports.handleInteraction = async (interaction) => {
       );
       const nextUnlock = seeds.find((seed) => seed.levelRequired > level);
 
+      let bal = player.coins - totalCost;
+
       //Create an embed to display the available seeds
       const embed = createSeedEmbed(
-        player,
+        bal,
         availableSeeds,
         inventory,
         username,
@@ -234,11 +245,11 @@ module.exports.handleInteraction = async (interaction) => {
       }
 
       const playerUpgrades = await getUpgrades(playerId);
-      
+
       const currentUpgrade = playerUpgrades.find(
         (u) => u.upgrade_name.toLowerCase() === upgradeName
       );
-      
+
       const currentLevel = currentUpgrade ? currentUpgrade.upgrade_level : 0;
 
       // Determine multiplier and plotIncrease
@@ -262,7 +273,12 @@ module.exports.handleInteraction = async (interaction) => {
         updatePlot(playerId, plotIncrease),
       ]);
 
-      return await showUpgradeShop(interaction, `✅ You upgraded **${upgrade.name}** to Level ${currentLevel + 1} for **$${upgradePrice}**!`)
+      return await showUpgradeShop(
+        interaction,
+        `✅ You upgraded **${upgrade.name}** to Level ${
+          currentLevel + 1
+        } for **$${upgradePrice}**!`
+      );
     }
   }
 };

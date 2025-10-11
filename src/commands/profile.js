@@ -7,6 +7,11 @@ const { getInventory } = require("../utils/inventoryDb");
 const { getPlayer } = require("../utils/playersDb");
 const { getLevelFromXP } = require("../utils/formulas");
 const { getUsedPlot } = require("../utils/plotsDb");
+const fs = require("fs");
+
+// Read seeds data from the JSON file
+const crops = JSON.parse(fs.readFileSync("./src/data/crops.json", "utf-8"));
+
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -54,9 +59,17 @@ async function handleProfileRequest({
     const { level, currentXP, nextLevelXP } = getLevelFromXP(player.xp);
     const inventory = await getInventory(id, "crop");
 
-    let formattedInventory = inventory.length > 0
-      ? inventory.map(item => `**${item.quantity}** ${item.item_name}`).join("\n")
-      : "You have no crops."; // If no items, show an empty message
+    // Format inventory with emojis
+    let formattedInventory =
+      inventory.length > 0
+        ? inventory
+            .map((item) => {
+              const crop = crops.find((c) => c.name.toLowerCase() === item.item_name.toLowerCase());
+              const emoji = crop ? crop.emoji : "❓"; // Use default ❓ if emoji is not found
+              return `**${item.quantity}** ${emoji} ${item.item_name}`;
+            })
+            .join("\n")
+        : "You have no crops."; // If no items, show an empty message
 
     const usedPlot = await getUsedPlot(id);
     let emptyPlot = player.max_plots - usedPlot;

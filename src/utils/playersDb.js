@@ -27,7 +27,7 @@ async function createPlayer(playerId) {
       `;
     await client.query(insertPlotsQuery, [playerId]);
 
-    const insertUpgrade = `INSERT INTO upgrades (player_id, upgrade_name, upgrade_level) VALUES ($1, 'Farming Expansion', 1)`
+    const insertUpgrade = `INSERT INTO upgrades (player_id, upgrade_name, upgrade_level) VALUES ($1, 'Farm Expansion', 1)`
     await client.query(insertUpgrade, [playerId]);
     await client.query("COMMIT");
   } catch (error) {

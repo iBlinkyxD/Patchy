@@ -2,6 +2,7 @@
     {
         "id": 1,
         "name": "Wheat Seeds",
+        "emoji": "🌾",
         "cropId": 1,
         "price": 0,
         "levelRequired": 1,
@@ -11,6 +12,7 @@
     {
         "id": 2,
         "name": "Carrot Seeds",
+        "emoji": "🥕",
         "cropId": 2,
         "price": 5,
         "levelRequired": 2,
@@ -20,6 +22,7 @@
     {
         "id": 3,
         "name": "Corn Seeds",
+        "emoji": "🌽",
         "cropId": 3,
         "price": 10,
         "levelRequired": 5,
@@ -29,6 +32,7 @@
     {
         "id": 4,
         "name": "Strawberries Seeds",
+        "emoji": "🍓",
         "cropId": 4,
         "price": 50,
         "levelRequired": 10,
@@ -38,6 +42,7 @@
     {
         "id": 5,
         "name": "Pumpkins Seeds",
+        "emoji": "🎃",
         "cropId": 5,
         "price": 100,
         "levelRequired": 15,
@@ -47,6 +52,7 @@
     {
         "id": 6,
         "name": "Grapes Seeds",
+        "emoji": "🍇",
         "cropId": 6,
         "price": 200,
         "levelRequired": 20,
@@ -56,6 +62,7 @@
     {
         "id": 7,
         "name": "Pineapple Seeds",
+        "emoji": "🍍",
         "cropId": 7,
         "price": 500,
         "levelRequired": 25,
