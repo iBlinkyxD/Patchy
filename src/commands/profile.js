@@ -1,102 +1,73 @@
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  MessageFlags,
-} = require("discord.js");
-const { getInventory } = require("../utils/inventoryDb");
-const { getPlayer } = require("../utils/playersDb");
-const { getLevelFromXP } = require("../utils/formulas");
-const { getUsedPlot } = require("../utils/plotsDb");
-const fs = require("fs");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const Player = require("../models/player");
+const { execute, executePrefix } = require("./startfarm");
 
-// Read seeds data from the JSON file
-const crops = JSON.parse(fs.readFileSync("./src/data/crops.json", "utf-8"));
+function regenerateStamina(player) {
+  const now = Date.now();
+  const elapsed = now - player.lastStaminaUpdate;
+  const regenRate = 2 * 60 * 1000; // 1 every 2 mins.
+  const recovered = Math.floor(elapsed / regenRate);
 
+  if (recovered > 0) {
+    player.stamina = Math.min(player.maxStamina, player.stamina + recovered);
+    player.lastStaminaUpdate = now;
+  }
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("profile")
-    .setDescription("View your farming profile."),
+    .setDescription("Check your farm profile."),
 
   async execute(interaction) {
-    await handleProfileRequest({
+    await handleProfile({
       id: interaction.user.id,
-      name: interaction.user.displayName,
+      username: interaction.username,
       avatar: interaction.user.displayAvatarURL(),
       reply: (response) => interaction.reply(response),
-      ephemeralFlag: MessageFlags.Ephemeral,
     });
   },
 
   async executePrefix(message) {
-    await handleProfileRequest({
+    await handleProfile({
       id: message.author.id,
-      name: message.author.displayName,
+      username: message.author.displayName,
       avatar: message.author.displayAvatarURL(),
       reply: (response) => message.reply(response),
-      ephemeralFlag: true,
     });
   },
 };
 
-async function handleProfileRequest({
-  id,
-  name,
-  avatar,
-  reply,
-  ephemeralFlag,
-}) {
-  try {
-    const player = await getPlayer(id);
-    if (!player) {
-      return reply({
-        content:
-          "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-        flags: ephemeralFlag,
-      });
-    }
+async function handleProfile({ id, username, avatar, reply }) {
+  let player = await Player.findOne({ userId: id });
 
-    const { level, currentXP, nextLevelXP } = getLevelFromXP(player.xp);
-    const inventory = await getInventory(id, "crop");
-
-    // Format inventory with emojis
-    let formattedInventory =
-      inventory.length > 0
-        ? inventory
-            .map((item) => {
-              const crop = crops.find((c) => c.name.toLowerCase() === item.item_name.toLowerCase());
-              const emoji = crop ? crop.emoji : "❓"; // Use default ❓ if emoji is not found
-              return `**${item.quantity}** ${emoji} ${item.item_name}`;
-            })
-            .join("\n")
-        : "You have no crops."; // If no items, show an empty message
-
-    const usedPlot = await getUsedPlot(id);
-    let emptyPlot = player.max_plots - usedPlot;
-
-    const embed = new EmbedBuilder()
-      .setColor("#2ECC71")
-      .setTitle(`${name}'s Farming Profile`)
-      .setThumbnail(avatar)
-      .addFields(
-        { name: "", value: `🌟 **Level ${level}**`, inline: true },
-        { name: "", value: `⚡ XP: ${currentXP}/${nextLevelXP}`, inline: true },
-        {
-          name: "",
-          value: `💰 Balance: **$${Math.round(player.coins)}**`,
-          inline: false,
-        },
-        { name: "", value: `🏡 Available Plots: ${emptyPlot}/${player.max_plots}`, inline: false },
-        { name: "📦 Inventory", value: formattedInventory, inline: false }
-      )
-      .setTimestamp();
-
-    reply({ embeds: [embed] });
-  } catch (error) {
-    console.error("Database error: ", error);
-    reply({
-      content: "There was an error retrieving your profile.",
-      flags: ephemeralFlag,
+  if (!player) {
+    player = new Player({
+      userId: id,
+      username: username,
     });
+    await player.save();
+    await reply(`🌾 A new farm has been created for you, ${username}!`);
   }
+
+  regenerateStamina(player);
+  await player.save();
+
+  const embed = new EmbedBuilder()
+    .setColor("#2ECC71")
+    .setTitle(`${username}'s Farming Profile`)
+    .setThumbnail(avatar)
+    .addFields(
+      { name: "", value: `🌟 **Level ${player.level}**`, inline: true },
+      { name: "", value: `📈 **XP:** ${player.xp}`, inline: true },
+      { name: "", value: `⚡ **Stamina:** ${player.stamina}/${player.maxStamina}`, inline: false },
+      {
+        name: "",
+        value: `💰 Balance: **$${player.coins}**`,
+        inline: false,
+      },
+    )
+    .setTimestamp();
+
+  return reply({ embeds: [embed] });
 }

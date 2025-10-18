@@ -4,7 +4,7 @@ const {
   IntentsBitField,
   Collection,
 } = require("discord.js");
-const fs = require("fs");
+const fse = require("fs-extra");
 const path = require("path");
 
 const client = new Client({
@@ -21,7 +21,7 @@ client.commands = new Collection();
 
 // Load all commands from the 'commands' folder
 const commandsPath = path.join(__dirname, "commands");
-const commandFiles = fs
+const commandFiles = fse
   .readdirSync(commandsPath)
   .filter((file) => file.endsWith(".js"));
 
@@ -33,7 +33,7 @@ for (const file of commandFiles) {
 
 // Load all event from the 'events' folder
 const eventsPath = path.join(__dirname, "events");
-const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
+const eventFiles = fse.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
 
 for (const file of eventFiles) {
   const event = require(path.join(eventsPath, file));
@@ -42,4 +42,4 @@ for (const file of eventFiles) {
   client.on(eventName, (...args) => event(client, ...args));
 }
 
-client.login(process.env.BOT_TOKEN_PROD);
+client.login(process.env.BOT_TOKEN_DEV);

@@ -1,19 +1,18 @@
 {
   "name": "patchy",
   "version": "1.0.0",
+  "description": "Discord Farming Bot",
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "Blinky",
+  "author": "iBlinky",
   "license": "ISC",
-  "description": "A fun idle farming bot.",
   "dependencies": {
-    "discord.js": "^14.18.0",
-    "dotenv": "^16.4.7",
-    "fs": "^0.0.1-security",
-    "path": "^0.12.7",
-    "pg": "^8.13.2"
+    "discord.js": "^14.23.2",
+    "dotenv": "^17.2.3",
+    "fs-extra": "^11.3.2",
+    "mongoose": "^8.19.1",
+    "path": "^0.12.7"
   }
 }

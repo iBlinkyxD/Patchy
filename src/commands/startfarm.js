@@ -1,49 +1,46 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { getPlayer, createPlayer } = require("../utils/playersDb");
+const { SlashCommandBuilder } = require("discord.js");
+const Player = require("../models/player");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("startfarm")
-    .setDescription("Create your farming profile."),
+    .setDescription("Start your farming journey!"),
 
   async execute(interaction) {
     await handleStartFarm({
       id: interaction.user.id,
+      username: interaction.username,
       reply: (response) => interaction.reply(response),
-      ephemeralFlag: MessageFlags.Ephemeral,
     });
   },
 
   async executePrefix(message) {
     await handleStartFarm({
       id: message.author.id,
+      username: message.author.displayName,
       reply: (response) => message.reply(response),
-      ephemeralFlag: true,
     });
   },
 };
 
-async function handleStartFarm({ id, reply, ephemeralFlag }) {
-  try {
-    const player = await getPlayer(id);
+async function handleStartFarm({ id, username, reply }) {
+  const existing = await Player.findOne({ userId: id });
 
-    if (player) {
-      return reply({
-        content:
-          "You already have a farm! Use `/profile` OR `!profile` to view it.",
-        flags: ephemeralFlag,
-      });
-    }
-
-    await createPlayer(id);
-
-    reply("🌾 Farming profile created! Check it with `/profile`.");
-  } catch (error) {
-    console.error("Database error in startfarm:", error);
-    reply({
-      content:
-        "⚠️ An error occurred while creating your profile. Please try again later.",
-      flags: ephemeralFlag,
+  if (existing) {
+    return reply({
+      content: "🌾 You already have a farm! Use `/profile` OR `!profile` to view it.",
+      ephemeral: true,
     });
   }
+
+  const newPlayer = new Player({
+    userId: id,
+    username: username,
+  });
+
+  await newPlayer.save();
+
+  return reply({
+    content: "🌱 Farming profile created! Check it with `/profile` OR `!profile`.",
+  });
 }
