@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Player = require("../models/player");
-const { execute, executePrefix } = require("./startfarm");
 
 function regenerateStamina(player) {
   const now = Date.now();
@@ -22,7 +21,7 @@ module.exports = {
   async execute(interaction) {
     await handleProfile({
       id: interaction.user.id,
-      username: interaction.username,
+      username: interaction.user.displayName,
       avatar: interaction.user.displayAvatarURL(),
       reply: (response) => interaction.reply(response),
     });
@@ -53,19 +52,26 @@ async function handleProfile({ id, username, avatar, reply }) {
   regenerateStamina(player);
   await player.save();
 
+  // 🔢 Calculate XP needed for next level
+  const xpNeeded = player.level * 100;
+
   const embed = new EmbedBuilder()
     .setColor("#2ECC71")
     .setTitle(`${username}'s Farming Profile`)
     .setThumbnail(avatar)
     .addFields(
       { name: "", value: `🌟 **Level ${player.level}**`, inline: true },
-      { name: "", value: `📈 **XP:** ${player.xp}`, inline: true },
-      { name: "", value: `⚡ **Stamina:** ${player.stamina}/${player.maxStamina}`, inline: false },
+      { name: "", value: `📈 **XP:** ${player.xp}/${xpNeeded}`, inline: true },
+      {
+        name: "",
+        value: `⚡ **Stamina:** ${player.stamina}/${player.maxStamina}`,
+        inline: false,
+      },
       {
         name: "",
         value: `💰 Balance: **$${player.coins}**`,
         inline: false,
-      },
+      }
     )
     .setTimestamp();
 

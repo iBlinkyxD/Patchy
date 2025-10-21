@@ -9,7 +9,7 @@ module.exports = {
   async execute(interaction) {
     await handleStartFarm({
       id: interaction.user.id,
-      username: interaction.username,
+      username: interaction.user.displayName,
       reply: (response) => interaction.reply(response),
     });
   },
@@ -28,7 +28,7 @@ async function handleStartFarm({ id, username, reply }) {
 
   if (existing) {
     return reply({
-      content: "🌾 You already have a farm! Use `/profile` OR `!profile` to view it.",
+      content: "You already have a farm! Use `/profile` OR `!profile` to view it.",
       ephemeral: true,
     });
   }
