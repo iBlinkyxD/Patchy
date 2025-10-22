@@ -30,7 +30,7 @@ async function handleInventory({ id, username, reply }) {
   if (!player) {
     return reply({
       content:
-        "🌾 You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
       ephemeral: true,
     });
   }

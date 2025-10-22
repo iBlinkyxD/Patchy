@@ -74,10 +74,13 @@ async function handlePlant({ id, seedId, amount, reply }) {
   if (!crop) return reply("❌ Invalid seed.");
 
   const player = await Player.findOne({ userId: id });
-  if (!player)
-    return reply(
-      "🌱 You don’t have a farm yet! Use /startfarm OR !startfarm first."
-    );
+  if (!player) {
+    return reply({
+      content:
+        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+      ephemeral: true,
+    });
+  }
 
   const availableSeeds = player.seeds.get(seedId) || 0;
   if (availableSeeds < amount) {

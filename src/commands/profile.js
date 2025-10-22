@@ -55,6 +55,11 @@ async function handleProfile({ id, username, avatar, reply }) {
   // 🔢 Calculate XP needed for next level
   const xpNeeded = player.level * 100;
 
+  // 🏡 Calculate available vs unlocked plots
+  const totalPlots = player.plotsUnlocked;
+  const usedPlots = player.plots.filter((p) => p.crop).length;
+  const availablePlots = totalPlots - usedPlots;
+
   const embed = new EmbedBuilder()
     .setColor("#2ECC71")
     .setTitle(`${username}'s Farming Profile`)
@@ -62,14 +67,20 @@ async function handleProfile({ id, username, avatar, reply }) {
     .addFields(
       { name: "", value: `🌟 **Level ${player.level}**`, inline: true },
       { name: "", value: `📈 **XP:** ${player.xp}/${xpNeeded}`, inline: true },
+      { name: "", value:"", inline:true},
       {
         name: "",
         value: `⚡ **Stamina:** ${player.stamina}/${player.maxStamina}`,
-        inline: false,
+        inline: true,
       },
       {
         name: "",
-        value: `💰 Balance: **$${player.coins}**`,
+        value: `🏡 **Available Plots: **${availablePlots}/${player.plotsUnlocked}`,
+        inline: true,
+      },
+      {
+        name: "",
+        value: `💰 **Balance:** $${player.coins}`,
         inline: false,
       }
     )

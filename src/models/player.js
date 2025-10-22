@@ -15,7 +15,7 @@ const playerSchema = new mongoose.Schema({
   stamina: { type: Number, default: 100 },
   maxStamina: { type: Number, default: 100 },
   lastStaminaUpdate: { type: Date, default: Date.now },
-  plotsUnlocked: { type: Number, default: 3 },
+  plotsUnlocked: { type: Number, default: 5 },
   plots: { type: [plotSchema], default: [] },
   seeds: { type: Map, of: Number, default: {} },
   crops: { type: Map, of: Number, default: {} }, 

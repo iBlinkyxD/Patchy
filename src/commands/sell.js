@@ -47,11 +47,13 @@ module.exports = {
 
 async function handleSell({ id, cropId, amount, reply }) {
   const player = await Player.findOne({ userId: id });
-  if (!player)
-    return reply(
-      "🌱 You don’t have a farm yet! Use /startfarm or !startfarm first."
-    );
-
+  if (!player) {
+    return reply({
+      content:
+        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+      ephemeral: true,
+    });
+  }
   if (!player.crops || player.crops.size === 0)
     return reply("You don’t have any crops to sell.");
 
@@ -104,7 +106,7 @@ async function handleSell({ id, cropId, amount, reply }) {
     .addFields(
       {
         name: "Total Coins Earned",
-        value: `${totalEarned}`,
+        value: `$${totalEarned}`,
         inline: true,
       },
       { name: "Current Balance", value: `$${player.coins}`, inline: true }

@@ -30,7 +30,7 @@ async function handleHarvest({ id, reply }) {
   if (!player) {
     return reply({
       content:
-        "🌾 You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
       ephemeral: true,
     });
   }
@@ -38,69 +38,80 @@ async function handleHarvest({ id, reply }) {
   if (player.plots.length === 0)
     return reply("🌱 You don’t have any crops planted right now.");
 
-  const now = new Date();
-  let harvested = [];
-  let remaining = [];
-  let totalXP = 0;
+  const now = Date.now();
+  const harvestSummary = {}; // { cropId: { totalYield, xpGained } }
+  const remainingPlots = [];
 
-  // Separate ready vs. not ready crops
+  // Process each plot
   for (const plot of player.plots) {
     const cropData = crops.find((c) => c.id === plot.crop);
     if (!cropData) continue;
 
-    // Check if crop is ready
     if (plot.readyAt <= now) {
-      const yieldAmount = Math.floor(Math.random() * 3) + 1; // 1–3 crops
+      const yieldAmount = Math.floor(Math.random() * 3) + 1; // random 1–3
+      const xpGain = cropData.xp * yieldAmount;
 
-      // Add to inventory
+      // Add to player's crop inventory
       const currentAmount = player.crops.get(cropData.id) || 0;
       player.crops.set(cropData.id, currentAmount + yieldAmount);
 
-      harvested.push({
-        crop: cropData,
-        yield: yieldAmount,
-      });
-
-      // Rewards
-      totalXP += cropData.xp * yieldAmount;
+      // Add to summary
+      if (!harvestSummary[cropData.id]) {
+        harvestSummary[cropData.id] = {
+          name: cropData.name,
+          totalYield: 0,
+          xpGained: 0,
+        };
+      }
+      harvestSummary[cropData.id].totalYield += yieldAmount;
+      harvestSummary[cropData.id].xpGained += xpGain;
     } else {
-      remaining.push(plot); // not ready yet
+      remainingPlots.push(plot);
     }
   }
 
-  if (harvested.length === 0)
+  if (Object.keys(harvestSummary).length === 0)
     return reply("🕒 None of your crops are ready yet! Check back later.");
 
-  // Update player
-  player.plots = remaining;
+  // Update player data
+  player.plots = remainingPlots;
+
+  const totalXP = Object.values(harvestSummary).reduce(
+    (sum, c) => sum + c.xpGained,
+    0
+  );
   player.xp += totalXP;
 
-  const xpNeeded = player.level * 100;
-  if (player.xp > xpNeeded) {
-    player.level++;
+  // Level up check
+  let leveledUp = false;
+  let xpNeeded = player.level * 100;
+  while (player.xp >= xpNeeded) {
     player.xp -= xpNeeded;
+    player.level++;
+    leveledUp = true;
+    xpNeeded = player.level * 100;
   }
 
   await player.save();
 
-  const summary = harvested
-    .map(
-      (h) =>
-        `${h.crop.name} ×${h.yield} (, ⭐ ${
-          h.crop.xp * h.yield
-        })`
-    )
+  // Format summary lines
+  const summaryLines = Object.values(harvestSummary)
+    .map((c) => `${c.name} ×${c.totalYield} (⭐ ${c.xpGained})`)
     .join("\n");
 
-    const embed = new EmbedBuilder()
-      .setTitle("🌾 Harvest Results")
-      .setColor("Green")
-      .setDescription(summary)
-      .addFields(
-        { name: "⭐ Total XP Gained", value: `${totalXP}`, inline: true },
-        { name: "🏅 Level", value: `${player.level}`, inline: true }
-      )
-      .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setTitle("🌾 Harvest Summary")
+    .setColor("Green")
+    .setDescription(summaryLines)
+    .addFields(
+      { name: "⭐ Total XP Gained", value: `${totalXP}`, inline: true },
+      { name: "🌟 Level", value: `${player.level}`, inline: true },
+      { name: "📈 XP", value: `${player.xp}/${xpNeeded}`, inline: true }
+    )
+    .setFooter({
+      text: leveledUp ? "🎉 You leveled up!" : "Keep harvesting to gain XP!",
+    })
+    .setTimestamp();
 
-    return reply({ embeds: [embed] });
+  return reply({ embeds: [embed] });
 }
