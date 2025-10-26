@@ -1,6 +1,8 @@
 const { SlashCommandBuilder } = require("discord.js");
+const { getPlayer } = require("../utils/playerUtils");
+const { parseArguments } = require("../utils/commandUtils"); 
+const { getCrop } = require("../utils/cropUtils");
 const crops = require("../data/crops");
-const Player = require("../models/player");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -39,60 +41,38 @@ module.exports = {
 
     const { seedId, amount } = parseArguments(args);
 
-    // Match user input to a crop (case-insensitive)
-    const crop =
-      crops.find(
-        (c) =>
-          c.id.toLowerCase() === seedId.toLowerCase() ||
-          c.name.toLowerCase().includes(seedId.toLowerCase()) ||
-          c.seedName.toLowerCase().includes(seedId.toLowerCase())
-      ) || null;
-
-    if (!crop) return message.reply("❌ Invalid seed name.");
-
     await handlePlant({
       id: message.author.id,
-      seedId: crop.id,
+      seedId,
       amount,
       reply: (response) => message.reply(response),
     });
   },
 };
 
-// Helper to extract seed + amount
-function parseArguments(args) {
-  let amount = parseInt(args[args.length - 1]);
-  let seedId = isNaN(amount) ? args.join(" ") : args.slice(0, -1).join(" ");
-  return {
-    seedId,
-    amount: isNaN(amount) ? 1 : Math.max(amount, 1),
-  };
-}
-
 async function handlePlant({ id, seedId, amount, reply }) {
-  const crop = crops.find((c) => c.id === seedId);
-  if (!crop) return reply("❌ Invalid seed.");
 
-  const player = await Player.findOne({ userId: id });
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
+  // Check for valid seed
+  const seed = getCrop(seedId);
+  if (!seed) return reply("Invalid seed.");
 
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if(!player) return;
+
+  // Check if player own or have enough seeds
   const availableSeeds = player.seeds.get(seedId) || 0;
   if (availableSeeds < amount) {
     if (availableSeeds === 0) {
-      return reply(`You don't own any **${crop.seedName}**!`);
+      return reply(`You don't own any **${seed.seedName}**!`);
     } else {
       return reply(
-        `You only have **${availableSeeds}** ${crop.seedName}.`
+        `You only have **${availableSeeds}** ${seed.seedName}.`
       );
     }
   }
 
+  // Check if available plots
   const availablePlots = player.plotsUnlocked - player.plots.length;
   if (availablePlots <= 0)
     return reply("🚜 All your plots are currently used!");
@@ -105,20 +85,20 @@ async function handlePlant({ id, seedId, amount, reply }) {
   player.seeds.set(seedId, availableSeeds - amount);
 
   const now = new Date();
-  const readyAt = new Date(now.getTime() + crop.growTime);
 
   for (let i = 0; i < amount; i++) {
     player.plots.push({
       crop: seedId,
       plantedAt: now,
-      readyAt,
+      readyAt: null,
+      watered: false,
     });
   }
   await player.save();
 
   return reply(
     `You planted **${amount}x ${
-      crop.seedName
-    }**! They’ll be ready in **${Math.floor(crop.growTime / 60000)} minutes.**`
+      seed.seedName
+    }**! They’ll be ready in **${Math.floor(seed.growTime / 60000)} minutes.**`
   );
 }

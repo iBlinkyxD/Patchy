@@ -1,6 +1,9 @@
-const Player = require("../models/player");
-const crops = require("../data/crops");
 const { SlashCommandBuilder } = require("discord.js");
+const { getPlayer, checkCoins } = require("../utils/playerUtils");
+const { isSeedInRotation } = require("../utils/shopUtils");
+const { parseArguments } = require("../utils/commandUtils");
+const { getCrop } = require("../utils/cropUtils");
+const crops = require("../data/crops");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,7 +24,6 @@ module.exports = {
         .setRequired(true)
     ),
 
-  // Slash command version
   async execute(interaction) {
     const seedId = interaction.options.getString("seed");
     const amount = interaction.options.getInteger("amount") || 1;
@@ -34,7 +36,6 @@ module.exports = {
     });
   },
 
-  // Prefix version: !buy wheat 3
   async executePrefix(message) {
     const args = message.content.trim().split(" ").slice(1);
     if (args.length === 0)
@@ -42,56 +43,42 @@ module.exports = {
 
     const { seedId, amount } = parseArguments(args);
 
-    // Match user input to a crop (case-insensitive)
-    const crop =
-      crops.find(
-        (c) =>
-          c.id.toLowerCase() === seedId.toLowerCase() ||
-          c.name.toLowerCase().includes(seedId.toLowerCase()) ||
-          c.seedName.toLowerCase().includes(seedId.toLowerCase())
-      ) || null;
-
-    if (!crop) return message.reply("❌ Invalid seed name.");
-
     await handleBuy({
       id: message.author.id,
-      seedId: crop.id, // use the real crop ID
+      seedId,
       amount,
       reply: (response) => message.reply(response),
     });
   },
 };
 
-// Helper to extract seed + amount
-function parseArguments(args) {
-  let amount = parseInt(args[args.length - 1]);
-  let seedId = isNaN(amount) ? args.join(" ") : args.slice(0, -1).join(" ");
-  return {
-    seedId,
-    amount: isNaN(amount) ? 1 : Math.max(amount, 1),
-  };
-}
-
-// Main buy logic
 async function handleBuy({ id, seedId, amount, reply }) {
-  const crop = crops.find((c) => c.id === seedId);
-  if (!crop) return reply("❌ Invalid seed.");
 
-  const player = await Player.findOne({ userId: id });
-  if (!player) {
+  // Check for valid seed
+  const seed = getCrop(seedId);
+  if (!seed) return reply("Invalid seed.");
+
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if (!player) return;
+
+  // Check if the seed is currently in rotation
+  if (!isSeedInRotation(seedId)) {
     return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
+      content: "That seed is not available in the current shop rotation.",
       ephemeral: true,
     });
   }
 
-  const totalCost = crop.seedCost * amount;
+  // Check if player have enough coins
+  const totalCost = seed.seedCost * amount;
 
-  if (player.coins < totalCost)
-    return reply("💸 You don’t have enough coins to buy that many!");
-
-  player.coins -= totalCost;
+  const enoughCoin = checkCoins(player, totalCost);
+  if (!enoughCoin)
+    return reply({
+      content: "You don’t have enough coins to buy that many!",
+      ephemeral: true,
+    });
 
   // Inventory: make sure it's a Map or a plain object
   const currentSeeds = player.seeds.get(seedId) || 0;
@@ -100,8 +87,10 @@ async function handleBuy({ id, seedId, amount, reply }) {
   await player.save();
 
   return reply(
-    `✅ You bought ${amount}x ${crop.seedName} for 💰${totalCost} coins!\nYou now have ${player.seeds.get(
+    `You bought **${amount}x ${
+      seed.seedName
+    }** for **$${totalCost}** coins!\nYou now have **${player.seeds.get(
       seedId
-    )}x ${crop.seedName}.`
+    )}x ${seed.seedName}**.`
   );
 }

@@ -4,6 +4,7 @@ const plotSchema = new mongoose.Schema({
   crop: { type: String },
   plantedAt: { type: Date },
   readyAt: { type: Date },
+  watered: { type: Boolean, default: false},
 });
 
 const playerSchema = new mongoose.Schema({
@@ -15,10 +16,11 @@ const playerSchema = new mongoose.Schema({
   stamina: { type: Number, default: 100 },
   maxStamina: { type: Number, default: 100 },
   lastStaminaUpdate: { type: Date, default: Date.now },
+  lastWater: { type: Date },
   plotsUnlocked: { type: Number, default: 5 },
   plots: { type: [plotSchema], default: [] },
   seeds: { type: Map, of: Number, default: {} },
-  crops: { type: Map, of: Number, default: {} }, 
+  crops: { type: Map, of: Number, default: {} },
   animals: { type: Map, of: Number, default: {} },
   upgrades: { type: [String], default: [] },
   coopId: { type: String, default: null },

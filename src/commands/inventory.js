@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const Player = require("../models/player");
+const { getPlayer } = require("../utils/playerUtils");
 const crops = require("../data/crops");
 
 module.exports = {
@@ -25,16 +25,12 @@ module.exports = {
 };
 
 async function handleInventory({ id, username, reply }) {
-  let player = await Player.findOne({ userId: id });
 
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if(!player) return;
 
+  // Get all seeds from player inventory
   const seedEntries = Array.from(player.seeds.entries());
 
   const seedText =
@@ -47,6 +43,7 @@ async function handleInventory({ id, username, reply }) {
           .join("\n")
       : "No seeds yet.";
 
+  // Get all crop from player inventory
   const cropEntries = Array.from(player.crops.entries());
 
   const cropText =

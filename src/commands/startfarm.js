@@ -24,15 +24,17 @@ module.exports = {
 };
 
 async function handleStartFarm({ id, username, reply }) {
-  const existing = await Player.findOne({ userId: id });
 
-  if (existing) {
+  // Check if player exist
+  const player = await Player.findOne({ userId: id });
+  if (player) {
     return reply({
       content: "You already have a farm! Use `/profile` OR `!profile` to view it.",
       ephemeral: true,
     });
   }
 
+  // Create new player if doesn't exist
   const newPlayer = new Player({
     userId: id,
     username: username,

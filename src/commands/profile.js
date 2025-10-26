@@ -1,17 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const Player = require("../models/player");
-
-function regenerateStamina(player) {
-  const now = Date.now();
-  const elapsed = now - player.lastStaminaUpdate;
-  const regenRate = 2 * 60 * 1000; // 1 every 2 mins.
-  const recovered = Math.floor(elapsed / regenRate);
-
-  if (recovered > 0) {
-    player.stamina = Math.min(player.maxStamina, player.stamina + recovered);
-    player.lastStaminaUpdate = now;
-  }
-}
+const { createPlayer, regenerateStamina } = require("../utils/playerUtils");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -38,27 +26,21 @@ module.exports = {
 };
 
 async function handleProfile({ id, username, avatar, reply }) {
-  let player = await Player.findOne({ userId: id });
 
-  if (!player) {
-    player = new Player({
-      userId: id,
-      username: username,
-    });
-    await player.save();
-    await reply(`🌾 A new farm has been created for you, ${username}!`);
-  }
-
+  // Check if player exist if not then create one
+  const player = await createPlayer(id, username, reply);
+  
+  // Update Stamina
   regenerateStamina(player);
   await player.save();
 
-  // 🔢 Calculate XP needed for next level
+  // Calculate XP needed for next level
   const xpNeeded = player.level * 100;
 
-  // 🏡 Calculate available vs unlocked plots
+  // Calculate available vs unlocked plots
   const totalPlots = player.plotsUnlocked;
-  const usedPlots = player.plots.filter((p) => p.crop).length;
-  const availablePlots = totalPlots - usedPlots;
+  const usedPlots = player.plots.length;
+  const availablePlots = Math.max(0, totalPlots - usedPlots);
 
   const embed = new EmbedBuilder()
     .setColor("#2ECC71")
@@ -67,7 +49,7 @@ async function handleProfile({ id, username, avatar, reply }) {
     .addFields(
       { name: "", value: `🌟 **Level ${player.level}**`, inline: true },
       { name: "", value: `📈 **XP:** ${player.xp}/${xpNeeded}`, inline: true },
-      { name: "", value:"", inline:true},
+      { name: "", value: "", inline: true },
       {
         name: "",
         value: `⚡ **Stamina:** ${player.stamina}/${player.maxStamina}`,

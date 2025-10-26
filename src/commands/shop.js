@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { getPlayer } = require("../utils/playerUtils");
+const { getCurrentShopSeeds, SHOP_ROTATION_INTERVAL, lastShopRotation } = require("../utils/shopUtils");
 const crops = require("../data/crops");
-const Player = require("../models/player");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,35 +24,39 @@ module.exports = {
 };
 
 async function handleShop({id, reply }) {
-  const player = await Player.findOne({ userId: id });
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
 
-  const shopList = crops
-    .map(
-      (c) =>
-        `${c.seedName} — 💰 ${c.seedCost} coins | ⏳ ${
-          c.growTime / 60000
-        } min | ⭐ ${c.xp} XP`
-    )
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if(!player) return;
+
+  // Get current seed shop rotation
+  const seeds = getCurrentShopSeeds();
+
+  // Create seed shop list
+  const shopList = seeds
+    .map((c) => `**${c.seedName}** — 💵 $${c.seedCost}`)
     .join("\n");
+
+  // Calculate time for next rotation
+  const nextRotationIn = SHOP_ROTATION_INTERVAL - (Date.now() - lastShopRotation);
+  const minutes = Math.floor(nextRotationIn / 60000);
+  const seconds = Math.floor((nextRotationIn % 60000) / 1000);
 
   const embed = new EmbedBuilder()
     .setColor("#f5e942")
-    .setTitle("🌻 Seed Shop")
+    .setTitle("🌻 Seed Shop (Rotates Every 30 Minutes)")
     .addFields(
+      { name: "", value: `**💰 Balance: ** $${player.coins}`, inline: true },
+      { name: "🪴 Available Seeds", value: shopList || "No seeds available right now!" },
       {
         name: "",
-        value: `💰 Balance: **$${player.coins}**`,
+        value: `**⏱️ Next Rotation: **${minutes}m ${seconds}s`,
         inline: false,
-      },
-      { name: "", value: shopList }
+      }
     )
-    .setFooter({text: "Use /buy <seed> or !buy <seed> to purchase seeds!"});
+    .setFooter({
+      text: "Use /buy <seed> or !buy <seed> to purchase seeds!",
+    });
+
   return reply({ embeds: [embed] });
 }

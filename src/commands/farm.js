@@ -1,18 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, Embed } = require("discord.js");
-const Player = require("../models/player");
+const { getPlayer } = require("../utils/playerUtils");
+const { formatTime } = require("../utils/timeUtils");
 const crops = require("../data/crops");
-
-function formatTime(ms) {
-    const totalSeconds = Math.ceil(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const hours = Math.floor(minutes / 60);
-    const remMinutes = minutes % 60;
-
-    if (hours > 0) return `${hours}h ${remMinutes}m ${seconds}s left`;
-    else if (minutes > 0) return `${minutes}m ${seconds}s left`;
-    else return `${seconds}s left`;
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -37,21 +26,19 @@ module.exports = {
 };
 
 async function handleFarm({ id, username, reply }) {
-  const player = await Player.findOne({ userId: id });
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
 
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if(!player) return;
+
+  // Check if plots are empty
   if (!player.plots.length) {
     return reply(
       "You haven't planted anythign yet! Use `/plant` OR `!plant` to get started."
     );
   }
 
+  // Search for planted crops data
   const now = Date.now();
   const cropStats = {};
   let nextHarvestTime = Infinity;
@@ -61,20 +48,28 @@ async function handleFarm({ id, username, reply }) {
     const cropData = crops.find((c) => c.id === plot.crop);
     if (!cropData) continue;
 
-    if (!cropStats[cropData.id])
+    if (!cropStats[cropData.id]) {
       cropStats[cropData.id] = {
         name: cropData.name,
-        readyCount: 0,
+        needsWater: 0,
         growingTimes: [],
+        readyCount: 0,
       };
+    }
+
+    // Crop hasn't been watered yet
+    if (!plot.watered) {
+      cropStats[cropData.id].needsWater++;
+      continue;
+    }
 
     const remaining = plot.readyAt - now;
+
     if (remaining <= 0) {
       cropStats[cropData.id].readyCount++;
     } else {
       cropStats[cropData.id].growingTimes.push(remaining);
 
-      // ✅ Track the soonest harvest time
       if (plot.readyAt < nextHarvestTime) {
         nextHarvestTime = plot.readyAt;
         nextHarvestCrop = cropData;
@@ -82,33 +77,41 @@ async function handleFarm({ id, username, reply }) {
     }
   }
 
+ // Calculate available vs unlocked plots
   const totalPlots = player.plotsUnlocked;
   const usedPlots = player.plots.length;
-  const emptyPlots = Math.max(0, totalPlots - usedPlots);
+  const availablePlots = Math.max(0, totalPlots - usedPlots);
 
   // Format Breakdown
   const breakdownLines = Object.values(cropStats).map((entry) => {
-    const total = entry.readyCount + entry.growingTimes.length;
+    const total =
+      entry.needsWater + entry.growingTimes.length + entry.readyCount;
 
-    if (entry.growingTimes.length === 0) {
-      return `${entry.name} ×${total} — ✅ All Ready!`;
+    if (entry.needsWater === total) {
+      return `${entry.name} ×${total} — 💧 Needs Water (${entry.needsWater})`;
     }
 
-    // Average remaining grow time
-    const avgTime =
-      entry.growingTimes.reduce((a, b) => a + b, 0) /
-      entry.growingTimes.length;
+    let line = `${entry.name} ×${total} — `;
 
-    const timeText = formatTime(avgTime);
-    const readyText =
-      entry.readyCount > 0 ? `✅ ${entry.readyCount} ready, ` : "";
-    return `${entry.name} ×${total} — ${readyText}⏳ ${timeText}`;
+    if (entry.readyCount > 0) line += `✅ ${entry.readyCount} ready, `;
+    if (entry.needsWater > 0)
+      line += `💧 ${entry.needsWater} need water, `;
+
+    if (entry.growingTimes.length > 0) {
+      const avgTime =
+        entry.growingTimes.reduce((a, b) => a + b, 0) /
+        entry.growingTimes.length;
+      const timeText = formatTime(avgTime);
+      line += `⏳ ${timeText}`;
+    }
+
+    return line.trim().replace(/,\s*$/, ""); // Remove trailing comma
   });
   
-  // ✅ Build the "next harvest" message
+  // Build the "next harvest" message
   let nextHarvestField;
   if (nextHarvestTime === Infinity) {
-    nextHarvestField = "All crops are ready to harvest!";
+    nextHarvestField = "All crops are ready or need watering!";
   } else {
     const timeLeft = formatTime(nextHarvestTime - now);
     nextHarvestField = `${nextHarvestCrop.name} — ${timeLeft}`;
@@ -120,7 +123,7 @@ async function handleFarm({ id, username, reply }) {
     .addFields(
       {
         name: "🪴 Empty Plots",
-        value: `${emptyPlots}/${totalPlots}`,
+        value: `${availablePlots}/${totalPlots}`,
         inline: true,
       },
       { name: "🕒 Next Harvest Ready In", value: nextHarvestField, inline: true },

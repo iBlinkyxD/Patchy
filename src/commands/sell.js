@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { getPlayer } = require("../utils/playerUtils");
 const crops = require("../data/crops");
-const Player = require("../models/player");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -46,21 +46,18 @@ module.exports = {
 };
 
 async function handleSell({ id, cropId, amount, reply }) {
-  const player = await Player.findOne({ userId: id });
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
+
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if(!player) return;
+
   if (!player.crops || player.crops.size === 0)
     return reply("You don’t have any crops to sell.");
 
   let totalEarned = 0;
   let soldItems = [];
 
-  // --- SELL ALL ---
+  // Sell all crop if not specified (/sell || !sell)
   if (!cropId) {
     for (const [id, qty] of player.crops.entries()) {
       const crop = crops.find((c) => c.id === id);
@@ -77,7 +74,7 @@ async function handleSell({ id, cropId, amount, reply }) {
     player.crops.clear();
   }
 
-  // --- SELL SPECIFIC CROP ---
+  // Sell specified crop
   else {
     const crop = crops.find((c) => c.id === cropId);
     if (!crop) return reply("That crop doesn't exist.");

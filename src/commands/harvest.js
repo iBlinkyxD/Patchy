@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const Player = require("../models/player");
+const { getPlayer } = require("../utils/playerUtils");
 const crops = require("../data/crops");
 
 module.exports = {
@@ -25,27 +25,28 @@ module.exports = {
 };
 
 async function handleHarvest({ id, reply }) {
-  const player = await Player.findOne({ userId: id });
+  // Check if player exist
+  const player = await getPlayer(id, reply);
+  if (!player) return;
 
-  if (!player) {
-    return reply({
-      content:
-        "You don't have a farm yet. Use `/startfarm` OR `!startfarm` to create one!",
-      ephemeral: true,
-    });
-  }
-
+  // Check if crops are ready to harvest
   if (player.plots.length === 0)
-    return reply("🌱 You don’t have any crops planted right now.");
+    return reply("You don’t have any crops planted right now.");
 
   const now = Date.now();
-  const harvestSummary = {}; // { cropId: { totalYield, xpGained } }
+  const harvestSummary = {};
   const remainingPlots = [];
 
   // Process each plot
   for (const plot of player.plots) {
     const cropData = crops.find((c) => c.id === plot.crop);
     if (!cropData) continue;
+
+    // Skip crops that haven't been watered
+    if (!plot.watered) {
+      remainingPlots.push(plot);
+      continue;
+    }
 
     if (plot.readyAt <= now) {
       const yieldAmount = Math.floor(Math.random() * 3) + 1; // random 1–3
@@ -71,7 +72,7 @@ async function handleHarvest({ id, reply }) {
   }
 
   if (Object.keys(harvestSummary).length === 0)
-    return reply("🕒 None of your crops are ready yet! Check back later.");
+    return reply("None of your crops are ready yet! Check back later.");
 
   // Update player data
   player.plots = remainingPlots;
