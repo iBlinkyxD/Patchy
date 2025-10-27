@@ -24,9 +24,13 @@ function isSeedInRotation(seedId) {
   return getCurrentShopSeeds().some((c) => c.id === seedId);
 }
 
+function getLastShopRotation() {
+  return lastShopRotation;
+}
+
 module.exports = {
   getCurrentShopSeeds,
   isSeedInRotation,
   SHOP_ROTATION_INTERVAL,
-  lastShopRotation,
+  getLastShopRotation,
 };

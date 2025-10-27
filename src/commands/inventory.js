@@ -25,13 +25,15 @@ module.exports = {
 };
 
 async function handleInventory({ id, username, reply }) {
-
   // Check if player exist
   const player = await getPlayer(id, reply);
-  if(!player) return;
+  if (!player) return;
 
   // Get all seeds from player inventory
-  const seedEntries = Array.from(player.seeds.entries());
+  // ✅ Filter out 0-amount seeds
+  const seedEntries = Array.from(player.seeds.entries()).filter(
+    ([, amount]) => amount > 0
+  );
 
   const seedText =
     seedEntries.length > 0
@@ -44,8 +46,10 @@ async function handleInventory({ id, username, reply }) {
       : "No seeds yet.";
 
   // Get all crop from player inventory
-  const cropEntries = Array.from(player.crops.entries());
-
+  const cropEntries = Array.from(player.crops.entries()).filter(
+    ([, amount]) => amount > 0
+  );
+  
   const cropText =
     cropEntries.length > 0
       ? cropEntries

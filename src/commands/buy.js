@@ -1,21 +1,22 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { getPlayer, checkCoins } = require("../utils/playerUtils");
-const { isSeedInRotation } = require("../utils/shopUtils");
+const { isSeedInRotation, getCurrentShopSeeds } = require("../utils/shopUtils");
 const { parseArguments } = require("../utils/commandUtils");
 const { getCrop } = require("../utils/cropUtils");
 const crops = require("../data/crops");
+const { autocomplete } = require("./sell");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("buy")
     .setDescription("Buy seeds from the shop.")
-    .addStringOption((option) =>
-      option
-        .setName("seed")
-        .setDescription("The seed you want to buy")
-        .setRequired(true)
-        // Must spread choices
-        .addChoices(...crops.map((c) => ({ name: c.seedName, value: c.id })))
+    .addStringOption(
+      (option) =>
+        option
+          .setName("seed")
+          .setDescription("The seed you want to buy")
+          .setRequired(true)
+          .setAutocomplete(true) // ✅ dynamic list
     )
     .addIntegerOption((option) =>
       option
@@ -23,6 +24,19 @@ module.exports = {
         .setDescription("How many seeds to buy")
         .setRequired(true)
     ),
+
+  async autocomplete(interaction) {
+    const focusedValue = interaction.options.getFocused();
+    const seeds = getCurrentShopSeeds();
+
+    const filtered = seeds
+      .filter((seed) =>
+        seed.seedName.toLowerCase().includes(focusedValue.toLowerCase())
+      )
+      .map((seed) => ({ name: seed.seedName, value: seed.id }));
+
+    await interaction.respond(filtered.slice(0, 25)); // Discord allows max 25 options
+  },
 
   async execute(interaction) {
     const seedId = interaction.options.getString("seed");
@@ -53,7 +67,6 @@ module.exports = {
 };
 
 async function handleBuy({ id, seedId, amount, reply }) {
-
   // Check for valid seed
   const seed = getCrop(seedId);
   if (!seed) return reply("Invalid seed.");

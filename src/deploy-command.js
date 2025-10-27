@@ -12,12 +12,21 @@ for (const file of commandFiles) {
   commands.push(command.data.toJSON());
 }
 
-const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN_DEV);
+const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN_PROD);
+
+// (async () => {
+//   try {
+//     await rest.put(Routes.applicationCommands(process.env.CLIENT_ID_PROD), { body: [] });
+//     console.log('✅ Deleted all global commands.');
+//   } catch (err) {
+//     console.error(err);
+//   }
+// })();
 
 (async () => {
   try {
     console.log("Registering slash commands...");
-    response = await rest.put(Routes.applicationCommands(process.env.CLIENT_ID_DEV), {
+    response = await rest.put(Routes.applicationCommands(process.env.CLIENT_ID_PROD), {
       body: commands,
     });
     console.log("Slash commands registered!");
@@ -25,3 +34,4 @@ const rest = new REST({ version: "10" }).setToken(process.env.BOT_TOKEN_DEV);
     console.error("Error registering slash command: ", error);
   }
 })();
+

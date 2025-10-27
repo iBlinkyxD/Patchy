@@ -1,7 +1,10 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { getPlayer } = require("../utils/playerUtils");
-const { getCurrentShopSeeds, SHOP_ROTATION_INTERVAL, lastShopRotation } = require("../utils/shopUtils");
-const crops = require("../data/crops");
+const {
+  getCurrentShopSeeds,
+  SHOP_ROTATION_INTERVAL,
+  getLastShopRotation,
+} = require("../utils/shopUtils");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,11 +26,10 @@ module.exports = {
   },
 };
 
-async function handleShop({id, reply }) {
-
+async function handleShop({ id, reply }) {
   // Check if player exist
   const player = await getPlayer(id, reply);
-  if(!player) return;
+  if (!player) return;
 
   // Get current seed shop rotation
   const seeds = getCurrentShopSeeds();
@@ -38,7 +40,8 @@ async function handleShop({id, reply }) {
     .join("\n");
 
   // Calculate time for next rotation
-  const nextRotationIn = SHOP_ROTATION_INTERVAL - (Date.now() - lastShopRotation);
+  const nextRotationIn =
+    SHOP_ROTATION_INTERVAL - (Date.now() - getLastShopRotation());
   const minutes = Math.floor(nextRotationIn / 60000);
   const seconds = Math.floor((nextRotationIn % 60000) / 1000);
 
@@ -47,7 +50,10 @@ async function handleShop({id, reply }) {
     .setTitle("🌻 Seed Shop (Rotates Every 30 Minutes)")
     .addFields(
       { name: "", value: `**💰 Balance: ** $${player.coins}`, inline: true },
-      { name: "🪴 Available Seeds", value: shopList || "No seeds available right now!" },
+      {
+        name: "🪴 Available Seeds",
+        value: shopList || "No seeds available right now!",
+      },
       {
         name: "",
         value: `**⏱️ Next Rotation: **${minutes}m ${seconds}s`,

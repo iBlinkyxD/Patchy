@@ -188,7 +188,7 @@ module.exports = [
     xp: 12,
     harvestReward: 36,
   },
-    {
+  {
     id: "watermelon",
     name: "🍉 Watermelon",
     seedName: "🍉 Watermelon Seeds",
@@ -197,7 +197,7 @@ module.exports = [
     xp: 20,
     harvestReward: 60,
   },
-    {
+  {
     id: "melon",
     name: "🍈 Melon",
     seedName: "🍈 Melon Seeds",
@@ -206,7 +206,7 @@ module.exports = [
     xp: 16,
     harvestReward: 48,
   },
-    {
+  {
     id: "pumpkin",
     name: "🎃 Pumpkin",
     seedName: "🎃 Pumpkin Seeds",
@@ -214,5 +214,113 @@ module.exports = [
     growTime: 100 * 60 * 1000, // 100 minutes
     xp: 20,
     harvestReward: 60,
+  },
+  {
+    id: "apple",
+    name: "🍎 Apple",
+    seedName: "🍎 Apple Seeds",
+    seedCost: 28,
+    growTime: 70 * 60 * 1000, // 70 minutes
+    xp: 14,
+    harvestReward: 42,
+  },
+  {
+    id: "orange",
+    name: "🍊 Orange",
+    seedName: "🍊 Orange Seeds",
+    seedCost: 30,
+    growTime: 75 * 60 * 1000, // 75 minutes
+    xp: 15,
+    harvestReward: 45,
+  },
+  {
+    id: "lemon",
+    name: "🍋 Lemon",
+    seedName: "🍋 Lemon Seeds",
+    seedCost: 22,
+    growTime: 55 * 60 * 1000, // 55 minutes
+    xp: 11,
+    harvestReward: 33,
+  },
+  {
+    id: "cherry",
+    name: "🍒 Cherry",
+    seedName: "🍒 Cherry Seeds",
+    seedCost: 20,
+    growTime: 50 * 60 * 1000, // 50 minutes
+    xp: 10,
+    harvestReward: 30,
+  },
+  {
+    id: "peach",
+    name: "🍑 Peach",
+    seedName: "🍑 Peach Seeds",
+    seedCost: 34,
+    growTime: 85 * 60 * 1000, // 85 minutes
+    xp: 17,
+    harvestReward: 51,
+  },
+  {
+    id: "lime",
+    name: "🍋‍🟩 Lime",
+    seedName: "🍋‍🟩 Lime Seeds",
+    seedCost: 22,
+    growTime: 55 * 60 * 1000, // 55 minutes
+    xp: 11,
+    harvestReward: 33,
+  },
+  {
+    id: "mango",
+    name: "🥭 Mango",
+    seedName: "🥭 Mango Seeds",
+    seedCost: 32,
+    growTime: 80 * 60 * 1000, // 80 minutes
+    xp: 16,
+    harvestReward: 48,
+  },
+  {
+    id: "coconut",
+    name: "🥥 Coconut",
+    seedName: "🥥 Coconut Seeds",
+    seedCost: 30,
+    growTime: 75 * 60 * 1000, // 75 minutes
+    xp: 15,
+    harvestReward: 45,
+  },
+  {
+    id: "avocado",
+    name: "🥑 Avocado",
+    seedName: "🥑 Avocado Seeds",
+    seedCost: 40,
+    growTime: 100 * 60 * 1000, // 100 minutes
+    xp: 20,
+    harvestReward: 60,
+  },
+  {
+    id: "banana",
+    name: "🍌 Banana",
+    seedName: "🍌 Banana Seeds",
+    seedCost: 22,
+    growTime: 55 * 60 * 1000, // 100 minutes
+    xp: 11,
+    harvestReward: 33,
+  },
+  {
+    id: "pineapple",
+    name: "🍍 Pineapple",
+    seedName: "🍍 Pineapple Seeds",
+    seedCost: 20,
+    growTime: 50 * 60 * 1000, // 100 minutes
+    xp: 10,
+    harvestReward: 30,
+  },
+  {
+    id: "pear",
+    name: "🍐 Pear",
+    seedName: "🍐 Pear Seeds",
+    seedCost: 26,
+    growTime: 65 * 60 * 1000, // 100 minutes
+    xp: 13,
+    harvestReward: 39,
   },
 ];

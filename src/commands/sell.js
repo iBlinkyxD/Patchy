@@ -6,19 +6,41 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("sell")
     .setDescription("Sell harvested crops.")
-    .addStringOption((option) =>
-      option
-        .setName("crop")
-        .setDescription("The crop you want to sell (leave empty to sell all).")
-        .addChoices(...crops.map((c) => ({ name: c.name, value: c.id })))
+    .addStringOption(
+      (option) =>
+        option
+          .setName("crop")
+          .setDescription(
+            "The crop you want to sell (leave empty to sell all)."
+          )
+          .setAutocomplete(true) // 👈 enables dynamic player-based list
     )
     .addIntegerOption((option) =>
       option
         .setName("amount")
         .setDescription("How many of that crop you want to sell.")
         .setRequired(false)
-        .setMinValue(1)
+        .setMinValue(0)
     ),
+
+  async autocomplete(interaction) {
+    const focusedValue = interaction.options.getFocused();
+    const player = await getPlayer(interaction.user.id);
+    if (!player) return interaction.respond([]);
+
+    // Get only crops the player owns
+    const ownedCrops = Array.from(player.crops.entries())
+      .filter(([_, amount]) => amount > 0)
+      .map(([id, amount]) => {
+        const crop = crops.find((c) => c.id === id);
+        return { name: `${crop.name} (${amount})`, value: id };
+      })
+      .filter((crop) =>
+        crop.name.toLowerCase().includes(focusedValue.toLowerCase())
+      );
+
+    await interaction.respond(ownedCrops.slice(0, 25));
+  },
 
   async execute(interaction) {
     const cropId = interaction.options.getString("crop");
@@ -46,10 +68,9 @@ module.exports = {
 };
 
 async function handleSell({ id, cropId, amount, reply }) {
-
   // Check if player exist
   const player = await getPlayer(id, reply);
-  if(!player) return;
+  if (!player) return;
 
   if (!player.crops || player.crops.size === 0)
     return reply("You don’t have any crops to sell.");
@@ -82,9 +103,10 @@ async function handleSell({ id, cropId, amount, reply }) {
     const ownedAmount = player.crops.get(cropId) || 0;
     if (ownedAmount === 0) return reply(`You don't own any **${crop.name}**.`);
 
-    const sellAmount = amount ? Math.min(amount, ownedAmount) : ownedAmount;
+    const sellAmount = amount ?? ownedAmount;
     const coinsEarned = crop.harvestReward * sellAmount;
 
+    // Update player's inventory
     player.crops.set(cropId, ownedAmount - sellAmount);
     if (player.crops.get(cropId) <= 0) player.crops.delete(cropId);
 
